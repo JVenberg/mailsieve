@@ -1,0 +1,122 @@
+# Everything mailsieve decides lives here: the questions Jev answers and the rules built on them.
+#
+# Questions: every new inbox message gets all questions in one Jev call.
+#   noul   -> probability (0..1) that the answer is yes
+#   choice -> one option name, plus a probability for each option
+#
+# Rules: checked in order; the first rule whose `when` matches wins.
+#   when:   {question: ">= 0.8"}        noul probability cutoff
+#           {question: option}          choice picked this option
+#           {question: [opt_a, opt_b]}  choice picked any of these
+#           {question.option: ">= 0.6"} probability of one choice option
+#           {all: [...]} / {any: [...]} combine conditions
+#   label:  Gmail label applied as soon as the rule matches
+#   action: archive | trash, applied once the message is older than `after` (e.g. 24h, 7d)
+
+model: "~typesafe/jev-latest"
+body_chars: 1500
+
+# Messages matching any of these Gmail searches are never classified or touched.
+protect: ["is:starred", "from:me", "subject:re", "subject:fwd", "subject:fw"]
+
+questions:
+  auth_code:
+    type: noul
+    instructions: >-
+      Does `body` give the recipient a one-time code or a link that they use to log in,
+      verify their identity or email, confirm an account, or reset a password?
+    criteria:
+      "true": >-
+        Yes. Examples: a verification, security, login, one-time, OTP, MFA or PIN code for signing in
+        or verifying; a magic login link or a 'Log in' / 'Sign in' button sent so they can sign in;
+        a link to verify or confirm their email address or new account; a password reset link or
+        reset code; a link or code to approve a new device or sign-in.
+      "false": >-
+        No. Examples: an alert that a sign-in already happened with no code or link to use; a notice
+        that a password, 2FA or setting was changed; account details or welcome emails with no code or
+        login link; package locker or pickup codes; promo, discount or gift codes; receipts, bills,
+        statements, shipping updates, marketing, newsletters, personal mail.
+
+  activity_notice:
+    type: noul
+    instructions: >-
+      Is this email only notifying the recipient about account security activity that already
+      happened, such as a new sign-in, a new device, a password change, 2FA being enabled, or an
+      access token being added?
+    criteria:
+      "true": >-
+        Yes: a security or activity alert about something that already happened, with nothing the
+        recipient must enter or click to complete a sign-in.
+      "false": >-
+        No: it contains a code or link to complete a sign-in, verification or reset, or it is not
+        about account security activity.
+
+  receipt:
+    type: noul
+    instructions: >-
+      Is this email a receipt or confirmation for a purchase, order, payment or booking that is
+      already complete and needs no action from the recipient?
+    criteria:
+      "true": >-
+        Yes: order and purchase receipts, payment confirmations, donation receipts, ride and food
+        delivery receipts, subscription renewal receipts, booking confirmations, refund confirmations.
+      "false": >-
+        No: bills or invoices that still need paying, payment failures, shipping or delivery updates,
+        statements, tax documents, cart reminders, marketing, account or security notices,
+        personal mail.
+
+  email_type:
+    type: choice
+    instructions: What kind of email is this?
+    criteria:
+      auth_code: A one-time code or link to log in, verify, confirm an account, or reset a password.
+      security_alert: >-
+        An alert about account security activity that already happened: new sign-in, new device,
+        password or 2FA changed.
+      account_notice: >-
+        Account administration: terms or privacy policy updates, account created or closed,
+        subscription status, service changes.
+      transaction: >-
+        A receipt, order confirmation, shipping or delivery update, bill, payment, statement,
+        booking or reservation.
+      marketing: >-
+        Advertising or promotion: sales, deals, product announcements, offers, 'we miss you',
+        surveys and review requests.
+      newsletter: A newsletter, digest or editorial content the recipient subscribed to.
+      personal: >-
+        A message written by a person to the recipient: friends, family, coworkers, individual
+        correspondence.
+      notification: >-
+        An automated notification from an app or service: reminders, appointments, activity on a
+        shared item, comments, alerts that are not about security.
+      spam_scam: Unsolicited junk, phishing, fake prizes, or impersonation from a suspicious sender.
+
+rules:
+  - name: codes
+    label: Codes
+    when:
+      any:
+        - {email_type: auth_code}
+        - all: [{email_type: security_alert}, {auth_code: ">= 0.85"}, {activity_notice: "< 0.2"}]
+    action: trash
+    after: 24h
+
+  - name: security
+    label: Security
+    when: {email_type: security_alert}
+    action: archive
+    after: 24h
+
+  - name: receipts
+    label: Receipts
+    when: {receipt: ">= 0.8"}
+    action: archive
+    after: 7d
+
+  - name: ads
+    label: Ads
+    when: {email_type: marketing}
+
+  - name: spam
+    label: Spam?
+    when: {email_type: spam_scam}

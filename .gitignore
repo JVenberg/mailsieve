@@ -1,0 +1,11 @@
+# Secrets and mail data: never commit.
+.secrets
+.env
+.env.*
+data
+*.db
+token*.json
+credentials*.json
+
+.venv/
+__pycache__/

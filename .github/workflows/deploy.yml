@@ -1,0 +1,36 @@
+name: deploy
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    if: vars.GCP_PROJECT != '' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: mailsieve-deploy@${{ vars.GCP_PROJECT }}.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy mailsieve \
+            --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --source . \
+            --service-account "mailsieve-run@${{ vars.GCP_PROJECT }}.iam.gserviceaccount.com" \
+            --no-allow-unauthenticated --max-instances 1 --concurrency 1 --timeout 900 \
+            --set-secrets GMAIL_TOKEN=gmail-token:latest,OPENROUTER_API_KEY=openrouter-api-key:latest \
+            --set-env-vars "WATCH_TOPIC=projects/${{ vars.GCP_PROJECT }}/topics/gmail-inbox,DRY_RUN=${{ vars.DRY_RUN || '0' }}"
