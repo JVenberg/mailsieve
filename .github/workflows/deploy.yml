@@ -33,4 +33,4 @@ jobs:
             --service-account "mailsieve-run@${{ vars.GCP_PROJECT }}.iam.gserviceaccount.com" \
             --no-allow-unauthenticated --max-instances 1 --concurrency 1 --timeout 900 \
             --set-secrets GMAIL_TOKEN=gmail-token:latest,OPENROUTER_API_KEY=openrouter-api-key:latest \
-            --set-env-vars "WATCH_TOPIC=projects/${{ vars.GCP_PROJECT }}/topics/gmail-inbox,DRY_RUN=${{ vars.DRY_RUN || '0' }}"
+            --set-env-vars "WATCH_TOPIC=projects/${{ vars.GCP_PROJECT }}/topics/gmail-inbox,CACHE=firestore,DRY_RUN=${{ vars.DRY_RUN || '0' }}"

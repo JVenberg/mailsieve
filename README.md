@@ -2,28 +2,49 @@
 
 Keeps a Gmail inbox high-signal. Every new email is read by
 [Jev](https://openrouter.ai/~typesafe/jev-latest), TypeSafe's small decision model, called through
-OpenRouter's decisions API. Jev answers a set of plain-English questions about the email ("Does this give the
-recipient a one-time code or login link?", "What kind of email is this?") with probabilities. Rules built
-on those answers and cutoffs label the email, then archive or trash it once it is old enough.
+OpenRouter's decisions API. Jev answers plain-English questions about the email with probabilities, and
+rules built on those answers label it, archive or trash it once it is old enough, or mark it for
+unsubscribing.
+
+## How decisions are made
+
+1. **Route.** One exhaustive question, `email_type`, puts every email in exactly one of 22 types
+   (login_code, security_alert, receipt, booking, marketing, newsletter, personal, official, ... other).
+   Each type has a definition, exclusions and examples.
+2. **Settle overlaps.** A separate yes/no question exists only where a rule depends on telling two
+   types apart, e.g. a security alert that actually contains a login code.
+3. **Confirm.** Before any action, the matched rule asks one yes/no question about the property that
+   makes the action safe. Only if it passes is the action scheduled; otherwise the email is just labeled.
 
 The defaults in [`mailsieve/rules.yaml`](mailsieve/rules.yaml):
 
-| Rule | When | Label | Then |
-|---|---|---|---|
-| codes | login/verification codes, magic links, password resets | Codes | trash after 24h |
-| security | new sign-in / new device / settings-changed alerts | Security | archive after 24h |
-| receipts | completed purchases, payments, bookings | Receipts | archive after 7d |
-| ads | marketing, promos, surveys | Ads | label only |
-| spam | junk, phishing | Spam? | label only |
+| Rule | When | Confirm | Label | Action |
+|---|---|---|---|---|
+| codes | login_code, or security_alert containing a code | worthless once used | Codes | trash after 24h |
+| security | security_alert | routine, nothing to do | Security | archive after 24h |
+| receipts | receipt | nothing to do, nothing upcoming | Receipts | archive after 7d |
+| unwanted | marketing, survey, political | unsubscribable list mail | Ads | mark Unsubscribe |
+| spam | spam_scam | | Spam? | label only |
 
 Starred mail, mail from you, and replies/forwards are never touched. Trash is Gmail's 30-day trash, never a
-permanent delete. Jev costs about $0.00006 per email for all four questions.
+permanent delete.
+
+## Answer cache
+
+Every Jev answer is cached under the message id plus a fingerprint of the question's exact wording, the
+model and the input format (SQLite in `.cache/` locally, Firestore in Cloud Run). So:
+
+- a dry run followed by a real run asks Jev once;
+- changing rules or cutoffs re-decides from cached answers for free;
+- rewording or adding a question re-asks only that question;
+- the cache is the audit record of what Jev said about each email.
 
 ## Adding a rule
 
-Edit `rules.yaml` only: add a question if you need a new judgment, then a rule with `when`, `label`, and
-optionally `action` + `after`. Rules are checked in order and the first match wins. `uv run pytest` validates
-that every rule references real questions, options and cutoffs.
+Edit `rules.yaml` only: extend `email_type` if mail has no fitting type, add a yes/no question only for an
+overlap or an action's safety check, then a rule with `when`, `label`, and optionally `action`, `confirm`
+and `after`. Rules are checked in order and the first match wins. `uv run pytest` validates that every rule
+references real questions, options and cutoffs, and that every action has a confirm check.
 
 Preview against your real inbox without changing anything:
 
@@ -32,7 +53,7 @@ uv run python -m mailsieve classify --dry-run --query "in:inbox newer_than:14d"
 uv run python -m mailsieve sweep --dry-run
 ```
 
-New mail is classified as it arrives. To run the rules over your whole mailbox once (about $0.06 per
+New mail is classified as it arrives. To run the rules over your whole mailbox once (about $0.10 per
 1,000 emails; resumable, already-seen mail is skipped), backfill and then sweep:
 
 ```sh
