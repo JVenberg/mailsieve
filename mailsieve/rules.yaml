@@ -1,17 +1,21 @@
 # Everything mailsieve decides lives here: the questions Jev answers and the rules built on them.
 #
-# Questions: every new inbox message gets all questions in one Jev call.
-#   noul   -> probability (0..1) that the answer is yes
-#   choice -> one option name, plus a probability for each option
+# `email_type` is the exhaustive routing question: every email gets exactly one type. Separate yes/no
+# (noul) questions exist only to settle overlaps that a rule depends on, or to confirm an action is safe.
 #
 # Rules: checked in order; the first rule whose `when` matches wins.
-#   when:   {question: ">= 0.8"}        noul probability cutoff
-#           {question: option}          choice picked this option
-#           {question: [opt_a, opt_b]}  choice picked any of these
-#           {question.option: ">= 0.6"} probability of one choice option
-#           {all: [...]} / {any: [...]} combine conditions
-#   label:  Gmail label applied as soon as the rule matches
-#   action: archive | trash, applied once the message is older than `after` (e.g. 24h, 7d)
+#   when:    which emails the rule covers (usually an email_type)
+#   label:   Gmail label applied as soon as `when` matches
+#   action:  archive | trash | unsubscribe
+#   confirm: safety check, asked only after `when` matched; the action happens only if it passes
+#   after:   archive/trash wait this long (24h, 7d); unsubscribe is marked immediately
+#
+# Condition syntax (when/confirm):
+#   {question: option} / {question: [a, b]}  choice picked one of these
+#   {question.option: ">= 0.6"}             probability of one choice option
+#   {question: ">= 0.8"}                     noul probability cutoff
+#   {fact.name: true}                        fact computed in code: unsubscribable
+#   {all: [...]} / {any: [...]}              combine
 
 model: "~typesafe/jev-latest"
 body_chars: 1500
@@ -20,102 +24,180 @@ body_chars: 1500
 protect: ["is:starred", "from:me", "subject:re", "subject:fwd", "subject:fw"]
 
 questions:
-  auth_code:
-    type: noul
-    instructions: >-
-      Does `body` give the recipient a one-time code or a link that they use to log in,
-      verify their identity or email, confirm an account, or reset a password?
-    criteria:
-      "true": >-
-        Yes. Examples: a verification, security, login, one-time, OTP, MFA or PIN code for signing in
-        or verifying; a magic login link or a 'Log in' / 'Sign in' button sent so they can sign in;
-        a link to verify or confirm their email address or new account; a password reset link or
-        reset code; a link or code to approve a new device or sign-in.
-      "false": >-
-        No. Examples: an alert that a sign-in already happened with no code or link to use; a notice
-        that a password, 2FA or setting was changed; account details or welcome emails with no code or
-        login link; package locker or pickup codes; promo, discount or gift codes; receipts, bills,
-        statements, shipping updates, marketing, newsletters, personal mail.
-
-  activity_notice:
-    type: noul
-    instructions: >-
-      Is this email only notifying the recipient about account security activity that already
-      happened, such as a new sign-in, a new device, a password change, 2FA being enabled, or an
-      access token being added?
-    criteria:
-      "true": >-
-        Yes: a security or activity alert about something that already happened, with nothing the
-        recipient must enter or click to complete a sign-in.
-      "false": >-
-        No: it contains a code or link to complete a sign-in, verification or reset, or it is not
-        about account security activity.
-
-  receipt:
-    type: noul
-    instructions: >-
-      Is this email a receipt or confirmation for a purchase, order, payment or booking that is
-      already complete and needs no action from the recipient?
-    criteria:
-      "true": >-
-        Yes: order and purchase receipts, payment confirmations, donation receipts, ride and food
-        delivery receipts, subscription renewal receipts, booking confirmations, refund confirmations.
-      "false": >-
-        No: bills or invoices that still need paying, payment failures, shipping or delivery updates,
-        statements, tax documents, cart reminders, marketing, account or security notices,
-        personal mail.
-
   email_type:
     type: choice
-    instructions: What kind of email is this?
+    instructions:
+      question: What kind of email is this?
+      focus: >-
+        Classify by the email's main purpose for the recipient, not every topic it mentions.
+        `gmail_category`, `bulk_mail`, `mailing_list` and `attachments` are hints; decide from `subject` and `body`.
     criteria:
-      auth_code: A one-time code or link to log in, verify, confirm an account, or reset a password.
-      security_alert: >-
-        An alert about account security activity that already happened: new sign-in, new device,
-        password or 2FA changed.
-      account_notice: >-
-        Account administration: terms or privacy policy updates, account created or closed,
-        subscription status, service changes.
-      transaction: >-
-        A receipt, order confirmation, shipping or delivery update, bill, payment, statement,
-        booking or reservation.
-      marketing: >-
-        Advertising or promotion: sales, deals, product announcements, offers, 'we miss you',
-        surveys and review requests.
-      newsletter: A newsletter, digest or editorial content the recipient subscribed to.
-      personal: >-
-        A message written by a person to the recipient: friends, family, coworkers, individual
-        correspondence.
-      notification: >-
-        An automated notification from an app or service: reminders, appointments, activity on a
-        shared item, comments, alerts that are not about security.
-      spam_scam: Unsolicited junk, phishing, fake prizes, or impersonation from a suspicious sender.
+      login_code:
+        what: Delivers a one-time code or link the recipient uses to sign in, verify an email or device, confirm a new account, or reset a password.
+        not_for: Alerts that a sign-in already happened, password-changed notices, welcome emails, package pickup codes, promo codes.
+        examples: ["Your verification code is 482913", "Sign in to Slack (magic link)", "Reset your password", "Confirm your email address", "Approve this new device"]
+      security_alert:
+        what: Reports account security activity that already happened, such as a new sign-in, a new device, or a blocked or suspicious attempt.
+        not_for: Emails whose purpose is delivering a code or link to complete a sign-in; settings changes the recipient made.
+        examples: ["New sign-in to your Google Account", "New login to X from iPhone", "Unusual sign-in activity"]
+      account_change:
+        what: Confirms a change to or the state of the recipient's account, such as password or 2FA changed, email or profile updated, account created, welcome or registration complete, account details, account closed.
+        not_for: Codes or links still to be used, sign-in alerts, terms or policy updates.
+        examples: ["Your password was changed", "Two-factor authentication enabled", "Welcome to Fellow, your account is created", "Account details for jvenberg"]
+      receipt:
+        what: A receipt or confirmation for a purchase, payment, donation, refund, ride, delivery order or subscription renewal that is already complete.
+        not_for: Bills still due, shipping updates, bookings for future events, statements.
+        examples: ["Your receipt from Apple", "Your ride with Lyft", "Receipt for Order #37", "AutoPay payment processed"]
+      order_update:
+        what: Status of a physical order after purchase, such as order received, shipped, out for delivery, delivered, delayed, returned, or package ready for pickup.
+        not_for: The purchase receipt itself, marketing about products.
+        examples: ["Your package has shipped", "Delivered: your Amazon order", "You've got a package (locker pickup code)"]
+      bill_due:
+        what: Money the recipient still owes or must act on, such as a bill or invoice ready, payment due, payment failed, autopay scheduled, low balance.
+        not_for: Completed payments, statements with nothing due.
+        examples: ["Your Puget Sound Energy bill is ready", "Payment failed for your subscription", "Your payment is due Oct 15"]
+      finance:
+        what: Banking, credit, investment and tax information, such as statements available, tax documents, trade confirmations, transfers, credit report or credit inquiry alerts.
+        not_for: Bills due, purchase receipts, bank marketing.
+        examples: ["Your September statement is ready", "Your 1099 is available", "New inquiry on your credit report", "Trade confirmation"]
+      booking:
+        what: A reservation, ticket, itinerary or appointment, including confirmations, reminders, check-in, changes and cancellations for flights, hotels, restaurants, events, medical or service appointments.
+        not_for: Receipts for things already used, marketing for travel deals.
+        examples: ["Your flight is booked: SEA to OMA", "Reservation confirmed at JOEY", "Appointment reminder for Thursday", "Your tickets for Saturday"]
+      calendar_invite:
+        what: A calendar invitation or an update, acceptance or cancellation of a meeting sent by a calendar system.
+        not_for: Booking confirmations from businesses.
+        examples: ["Invitation: Sync @ Tue 2pm", "Accepted: Dinner planning"]
+      marketing:
+        what: Promotion from a business, such as sales, deals, product launches, recommendations, loyalty offers, 'we miss you', abandoned cart reminders.
+        not_for: Newsletters people read for content, surveys, political fundraising, announcements from groups the recipient belongs to.
+        examples: ["30% off this weekend", "New in Claude Code", "Your cart is waiting", "Member benefits: 3 months of Nitro"]
+      survey:
+        what: Asks for feedback, a rating, a review or a survey response about a product, service or purchase.
+        not_for: Votes or polls within a club or community the recipient belongs to.
+        examples: ["How did we do?", "Rate your recent order", "We value your insights"]
+      newsletter:
+        what: Editorial content the recipient subscribed to read, such as newsletters, digests, blog posts, Substack and Patreon posts, news briefings.
+        not_for: Promotional emails from stores, community announcements.
+        examples: ["The Morning briefing", "New post from a Substack writer", "Weekly digest"]
+      community:
+        what: Announcements, events and discussion from a group, club, school, alumni association, nonprofit or mailing list the recipient belongs to.
+        not_for: Businesses selling products, political campaigns, personal one-to-one messages.
+        examples: ["Green Lake Crew practice schedule", "Vote on regatta dates", "cs-graduating mailing list"]
+      political:
+        what: Political campaigns, parties, PACs and advocacy groups asking for donations, signatures, votes or polls.
+        not_for: Government agencies, ballots or official election notices.
+        examples: ["Chip in $5 before midnight", "Sign the petition", "Fundraising deadline"]
+      personal:
+        what: Written by a person to the recipient individually, such as friends, family, landlords or individual correspondence.
+        not_for: Automated or bulk mail, even when it uses the recipient's first name.
+        examples: ["Hey, are you free Saturday?", "Fwd: photos from the trip"]
+      work_school:
+        what: Work, coursework, research, job applications or recruiting correspondence.
+        not_for: Generic job-board marketing.
+        examples: ["Interview scheduling", "Your application to Acme", "Homework 3 feedback"]
+      official:
+        what: Government, court, legal, healthcare provider, insurance or utility account notices with legal, medical or civic weight, such as jury duty, court accounts, benefits, test results, policy documents, voting information.
+        not_for: Bills due, appointment bookings, marketing from insurers.
+        examples: ["King County District Court account details", "Your lab results are ready", "Your ballot has been mailed"]
+      social:
+        what: Notifications from social networks and community platforms about activity, such as likes, comments, follows, mentions, messages, friend suggestions.
+        not_for: Security alerts from those platforms, their marketing.
+        examples: ["Someone commented on your post", "You have 3 new messages on LinkedIn"]
+      service_notice:
+        what: A service telling all its users about itself, such as terms or privacy policy updates, price changes, outages, maintenance, feature or product changes affecting the recipient's account.
+        not_for: Changes the recipient made to their own account, marketing for new products.
+        examples: ["We're updating our Terms of Service", "Your plan price is changing", "Scheduled maintenance"]
+      app_notification:
+        what: Any other automated notification from an app or service about the recipient's own use of it, such as reminders, shared document activity, CI or monitoring alerts, smart home events, usage reports.
+        not_for: Anything that fits a more specific type above.
+        examples: ["Your build failed", "Your weekly screen time report", "Someone shared a document with you"]
+      spam_scam:
+        what: Unsolicited junk, phishing, fake prizes or invoices, impersonation, or mail from a suspicious sender the recipient has no relationship with.
+        not_for: Legitimate marketing from a business the recipient has used.
+        examples: ["You won a $500 gift card", "Your account will be suspended, click here", "Re: invoice from an unknown domain"]
+      other:
+        what: Fits none of the types above.
+
+  login_code_present:
+    type: noul
+    instructions: >-
+      Does `body` contain a one-time code, or a link or button, that the recipient must enter or click
+      to complete a sign-in, verify their identity, approve a device, or reset a password?
+    criteria:
+      "true": A code to enter or a link to click to complete sign-in, verification, device approval or a password reset.
+      "false": Only reports what happened, with at most a generic 'secure your account' or 'if this wasn't you' link.
+
+  code_disposable:
+    type: noul
+    instructions: >-
+      Once the one-time code or link in this email has been used or has expired, is the email worthless to keep?
+    criteria:
+      "true": Its only purpose is delivering the code or link; nothing else in it is worth keeping.
+      "false": >-
+        It also holds something worth keeping: usernames or account numbers, backup or recovery codes,
+        legal, medical or financial information, a receipt, or a message written by a person.
+
+  alert_routine:
+    type: noul
+    instructions: >-
+      Is this security alert routine, so the recipient needs to do nothing unless the activity was not theirs?
+    criteria:
+      "true": A routine notice of a new sign-in, device or change; it only says to act if it wasn't them.
+      "false": It reports a blocked or suspicious attempt, a locked account, fraud, or asks the recipient to respond.
+
+  receipt_done:
+    type: noul
+    instructions: >-
+      Does this email need no further action from the recipient, and does it not concern any trip,
+      reservation, event or appointment that could still be in the future?
+    criteria:
+      "true": A record of something finished, such as a purchase, payment, ride or past visit; nothing to do and nothing upcoming.
+      "false": >-
+        Something is still to do or still to come: a payment or form due, a return window to act on,
+        or a booking, ticket or itinerary for a future date.
+
+  subscription:
+    type: noul
+    instructions: >-
+      Is this a mailing the recipient could stop by unsubscribing, without losing any receipts,
+      account, security or service emails they need?
+    criteria:
+      "true": Promotional, newsletter, survey, political or announcement mail sent to a list.
+      "false": >-
+        Transactional, account, security, legal or personal mail, or mail whose unsubscribe would also
+        stop needed notices.
 
 rules:
   - name: codes
     label: Codes
     when:
       any:
-        - {email_type: auth_code}
-        - all: [{email_type: security_alert}, {auth_code: ">= 0.85"}, {activity_notice: "< 0.2"}]
+        - {email_type: login_code}
+        - all: [{email_type: security_alert}, {login_code_present: ">= 0.85"}]
     action: trash
     after: 24h
+    confirm: {code_disposable: ">= 0.8"}
 
   - name: security
     label: Security
     when: {email_type: security_alert}
     action: archive
     after: 24h
+    confirm: {alert_routine: ">= 0.8"}
 
   - name: receipts
     label: Receipts
-    when: {receipt: ">= 0.8"}
+    when: {email_type: receipt}
     action: archive
     after: 7d
+    confirm: {receipt_done: ">= 0.8"}
 
-  - name: ads
+  - name: unwanted
     label: Ads
-    when: {email_type: marketing}
+    when: {email_type: [marketing, survey, political]}
+    action: unsubscribe
+    confirm: {all: [{fact.unsubscribable: true}, {subscription: ">= 0.8"}]}
 
   - name: spam
     label: Spam?

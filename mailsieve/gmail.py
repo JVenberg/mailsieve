@@ -83,10 +83,38 @@ def _parts(payload: dict):
         yield from _parts(p)
 
 
+STATE_VERSION = 2
+UNSUB_LINK = re.compile(
+    r"href=[\"'][^\"']*(unsubscribe|opt-?out|email-?preferences|manage-?preferences)", re.IGNORECASE
+)
+CATEGORIES = {"CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS"}
+
+
+def html_body(msg: dict) -> str:
+    return next(
+        (
+            _decode(p["body"]["data"])
+            for p in _parts(msg["payload"])
+            if p.get("mimeType") == "text/html" and p.get("body", {}).get("data")
+        ),
+        "",
+    )
+
+
+def facts(msg: dict) -> dict:
+    """Things code can tell for certain, used by rule conditions but never asked of Jev."""
+    headers = {h["name"].lower() for h in msg["payload"].get("headers", [])}
+    return {"unsubscribable": "list-unsubscribe" in headers or bool(UNSUB_LINK.search(html_body(msg)))}
+
+
 def summarize(msg: dict, body_chars: int) -> dict:
-    """The small state Jev sees: sender, subject and the start of the body as plain text."""
+    """The small state Jev sees: envelope hints plus the start of the body as plain text.
+
+    Bump STATE_VERSION when this changes so cached answers about the old state are re-asked.
+    """
     headers = {h["name"].lower(): h["value"] for h in msg["payload"].get("headers", [])}
     plain = html_body = ""
+    attachments = [p["filename"] for p in _parts(msg["payload"]) if p.get("filename")]
     for p in _parts(msg["payload"]):
         data = p.get("body", {}).get("data")
         if not data:
@@ -99,8 +127,14 @@ def summarize(msg: dict, body_chars: int) -> dict:
         plain = html.unescape(
             re.sub(r"<(style|script).*?</\1>|<[^>]+>", " ", html_body, flags=re.DOTALL | re.IGNORECASE)
         )
+    category = next((c for c in msg.get("labelIds", []) if c in CATEGORIES), "")
     return {
         "from": headers.get("from", ""),
+        "to": headers.get("to", ""),
         "subject": headers.get("subject", ""),
+        "gmail_category": category.removeprefix("CATEGORY_").lower(),
+        "bulk_mail": bool(headers.get("list-unsubscribe") or headers.get("list-id")),
+        "mailing_list": headers.get("list-id", ""),
+        "attachments": attachments,
         "body": re.sub(r"\s+", " ", plain).strip()[:body_chars],
     }
