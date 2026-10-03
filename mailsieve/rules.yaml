@@ -50,10 +50,10 @@ questions:
         examples: ["Your receipt from Apple", "Your ride with Lyft", "Receipt for Order #37", "AutoPay payment processed"]
       order_update:
         what: Status of a physical order after purchase, such as order received, shipped, out for delivery, delivered, delayed, returned, or package ready for pickup.
-        not_for: The purchase receipt itself, marketing about products.
+        not_for: The purchase receipt itself, marketing about products, mail-scan digests such as USPS Informed Delivery, gift-card notifications.
         examples: ["Your package has shipped", "Delivered: your Amazon order", "You've got a package (locker pickup code)"]
       bill_due:
-        what: Money the recipient still owes or must act on, such as a bill or invoice ready, payment due, payment failed, autopay scheduled, low balance.
+        what: Money the recipient still owes or must act on, such as a bill or invoice ready, a statement with a payment due date and amount, payment failed, autopay scheduled, low balance.
         not_for: Completed payments, statements with nothing due.
         examples: ["Your Puget Sound Energy bill is ready", "Payment failed for your subscription", "Your payment is due Oct 15"]
       finance:
@@ -70,8 +70,8 @@ questions:
         examples: ["Invitation: Sync @ Tue 2pm", "Accepted: Dinner planning"]
       marketing:
         what: Promotion from a business, such as sales, deals, product launches, recommendations, loyalty offers, 'we miss you', abandoned cart reminders.
-        not_for: Newsletters people read for content, surveys, political fundraising, announcements from groups the recipient belongs to.
-        examples: ["30% off this weekend", "New in Claude Code", "Your cart is waiting", "Member benefits: 3 months of Nitro"]
+        not_for: Newsletters people read for content, surveys, political or charity fundraising, announcements from groups the recipient belongs to.
+        examples: ["30% off this weekend", "New in Claude Code", "Your cart is waiting", "Member benefits: 3 months of Nitro", "Tips to get more out of Zoom", "Earn double points this week"]
       survey:
         what: Asks for feedback, a rating, a review or a survey response about a product, service or purchase.
         not_for: Votes or polls within a club or community the recipient belongs to.
@@ -82,15 +82,22 @@ questions:
         examples: ["The Morning briefing", "New post from a Substack writer", "Weekly digest"]
       community:
         what: Announcements, events and discussion from a group, club, school, alumni association, nonprofit or mailing list the recipient belongs to.
-        not_for: Businesses selling products, political campaigns, personal one-to-one messages.
+        not_for: Businesses selling products, political campaigns, donation appeals, personal one-to-one messages.
         examples: ["Green Lake Crew practice schedule", "Vote on regatta dates", "cs-graduating mailing list"]
       political:
         what: Political campaigns, parties, PACs and advocacy groups asking for donations, signatures, votes or polls.
         not_for: Government agencies, ballots or official election notices.
         examples: ["Chip in $5 before midnight", "Sign the petition", "Fundraising deadline"]
+      fundraising:
+        what: Charities, nonprofits, schools, alumni associations and causes asking for a donation.
+        not_for: Political campaigns, receipts for donations already made.
+        examples: ["Give today to double your impact", "Your gift can help kids this winter", "Support the Annual Fund"]
       personal:
-        what: Written by a person to the recipient individually, such as friends, family, landlords or individual correspondence.
-        not_for: Automated or bulk mail, even when it uses the recipient's first name.
+        what: >-
+          Written by a person to the recipient individually, such as friends, family, landlords, or staff who
+          write about the recipient's own case (a leasing agent, clinic or support person). Includes gifts or
+          e-gift cards a person sent the recipient through a merchant.
+        not_for: Templated or bulk mail, even when personalised.
         examples: ["Hey, are you free Saturday?", "Fwd: photos from the trip"]
       work_school:
         what: Work, coursework, research, job applications or recruiting correspondence.
@@ -106,14 +113,18 @@ questions:
         examples: ["Someone commented on your post", "You have 3 new messages on LinkedIn"]
       service_notice:
         what: A service telling all its users about itself, such as terms or privacy policy updates, price changes, outages, maintenance, feature or product changes affecting the recipient's account.
-        not_for: Changes the recipient made to their own account, marketing for new products.
-        examples: ["We're updating our Terms of Service", "Your plan price is changing", "Scheduled maintenance"]
+        not_for: Changes the recipient made to their own account; feature announcements, tips and product news, which are marketing.
+        examples: ["We're updating our Terms of Service", "Your plan price is changing", "Scheduled maintenance", "Your account will be closed for inactivity"]
       app_notification:
         what: Any other automated notification from an app or service about the recipient's own use of it, such as reminders, shared document activity, CI or monitoring alerts, smart home events, usage reports.
         not_for: Anything that fits a more specific type above.
         examples: ["Your build failed", "Your weekly screen time report", "Someone shared a document with you"]
       spam_scam:
-        what: Unsolicited junk, phishing, fake prizes or invoices, impersonation, or mail from a suspicious sender the recipient has no relationship with.
+        what: >-
+          Unsolicited junk, phishing, fake prizes or invoices, impersonation, or mail from a suspicious sender
+          the recipient has no relationship with. Also: a display name or brand that does not match the
+          sender's domain (such as a store writing from a free-mail or unrelated domain), gibberish addresses,
+          deliberately misspelled subjects, and job or prize offers from strangers.
         not_for: Legitimate marketing from a business the recipient has used.
         examples: ["You won a $500 gift card", "Your account will be suspended, click here", "Re: invoice from an unknown domain"]
       other:
@@ -126,36 +137,44 @@ questions:
       to complete a sign-in, verify their identity, approve a device, or reset a password?
     criteria:
       "true": A code to enter or a link to click to complete sign-in, verification, device approval or a password reset.
-      "false": Only reports what happened, with at most a generic 'secure your account' or 'if this wasn't you' link.
+      "false": >-
+        Only reports what happened. Links offered only in case it was not the recipient, such as 'reset your
+        password', 'secure your account' or 'report this', do not count.
 
   code_disposable:
     type: noul
     instructions: >-
-      Once the one-time code or link in this email has been used or has expired, is the email worthless to keep?
+      Once the code or link in this email has been used or has expired, is there nothing left in it worth keeping?
     criteria:
-      "true": Its only purpose is delivering the code or link; nothing else in it is worth keeping.
+      "true": >-
+        Nothing is left: it only delivers a one-time code or a sign-in, verification, device-approval or
+        password-reset link. Warnings like 'never share this code', 'if this wasn't you' or 'this code expires'
+        are not worth keeping, and neither is the account name the code is for.
       "false": >-
-        It also holds something worth keeping: usernames or account numbers, backup or recovery codes,
-        legal, medical or financial information, a receipt, or a message written by a person.
+        It also holds something the recipient may need later: a full account number or username to record,
+        backup or recovery codes, an invitation or application link that stays valid for days, a receipt,
+        legal, medical or financial details, a message written by a person, or a warning that an account
+        recovery or change is under way.
 
   alert_routine:
     type: noul
     instructions: >-
       Is this security alert routine, so the recipient needs to do nothing unless the activity was not theirs?
     criteria:
-      "true": A routine notice of a new sign-in, device or change; it only says to act if it wasn't them.
-      "false": It reports a blocked or suspicious attempt, a locked account, fraud, or asks the recipient to respond.
+      "true": It only reports a sign-in, device or change and tells the recipient to act only if it was not them.
+      "false": >-
+        The recipient must click, approve, authorize or confirm for the sign-in to go through, or it reports a
+        blocked or suspicious attempt, a locked account or fraud, or asks a question.
 
   receipt_done:
     type: noul
     instructions: >-
-      Does this email need no further action from the recipient, and does it not concern any trip,
-      reservation, event or appointment that could still be in the future?
+      Is this a record of something already paid or delivered, with no booking, trip, event or appointment still ahead?
     criteria:
-      "true": A record of something finished, such as a purchase, payment, ride or past visit; nothing to do and nothing upcoming.
-      "false": >-
-        Something is still to do or still to come: a payment or form due, a return window to act on,
-        or a booking, ticket or itinerary for a future date.
+      "true": >-
+        A completed purchase, payment, renewal, refund, ride or visit. Return policies, warranty notes, 'keep
+        this for your records', auto-renewal reminders and links to manage a subscription do not make it incomplete.
+      "false": A payment, form or pickup still to be done, or a ticket, itinerary, reservation or appointment for a future date.
 
   subscription:
     type: noul
@@ -163,7 +182,7 @@ questions:
       Is this a mailing the recipient could stop by unsubscribing, without losing any receipts,
       account, security or service emails they need?
     criteria:
-      "true": Promotional, newsletter, survey, political or announcement mail sent to a list.
+      "true": Promotional, newsletter, survey, political, fundraising, loyalty or rewards mail sent to a list.
       "false": >-
         Transactional, account, security, legal or personal mail, or mail whose unsubscribe would also
         stop needed notices.
@@ -173,11 +192,11 @@ rules:
     label: Codes
     when:
       any:
-        - {email_type: login_code}
-        - all: [{email_type: security_alert}, {login_code_present: ">= 0.85"}]
+        - all: [{email_type: login_code}, {email_type.login_code: ">= 0.5"}]
+        - all: [{email_type: security_alert}, {login_code_present: ">= 0.9"}]
     action: trash
     after: 24h
-    confirm: {code_disposable: ">= 0.8"}
+    confirm: {code_disposable: ">= 0.7"}
 
   - name: security
     label: Security
@@ -195,9 +214,9 @@ rules:
 
   - name: unwanted
     label: Ads
-    when: {email_type: [marketing, survey, political]}
+    when: {email_type: [marketing, survey, political, fundraising]}
     action: unsubscribe
-    confirm: {all: [{fact.unsubscribable: true}, {subscription: ">= 0.8"}]}
+    confirm: {all: [{fact.unsubscribable: true}, {subscription: ">= 0.7"}]}
 
   - name: spam
     label: Spam?

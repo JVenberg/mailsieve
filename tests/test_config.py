@@ -98,3 +98,9 @@ def test_parse_duration():
     assert config.parse_duration("24h") == 86400
     with pytest.raises(ValueError):
         config.parse_duration("1w")
+
+
+def test_login_code_needs_type_confidence(cfg):
+    a = answers("login_code")
+    a["email_type"]["probabilities"]["login_code"] = 0.3
+    assert config.first_match(cfg.rules, a) is None
