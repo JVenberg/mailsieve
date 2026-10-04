@@ -157,10 +157,11 @@ questions:
       "true": >-
         Nothing is left: it only delivers a one-time code or a sign-in, verification, device-approval or
         password-reset link. Warnings like 'never share this code', 'if this wasn't you' or 'this code expires'
-        are not worth keeping, and neither is the account name the code is for.
+        are not worth keeping. It may mention the account's email address or username only to say which
+        account the code is for.
       "false": >-
-        It also holds something the recipient may need later: a full account number or username to record,
-        backup or recovery codes, an invitation or application link that stays valid for days, a receipt,
+        It also holds something the recipient may need later: a username or account number to record that the
+        recipient would not already know, a registration from a court, government agency or utility, backup or recovery codes, an invitation or application link that stays valid for days, a receipt,
         legal, medical or financial details, a message written by a person, or a warning that an account
         recovery or change is under way.
 
@@ -172,7 +173,8 @@ questions:
       "true": It only reports a sign-in, device or change and tells the recipient to act only if it was not them.
       "false": >-
         The recipient must click, approve, authorize or confirm for the sign-in to go through, or it reports a
-        blocked or suspicious attempt, a locked account or fraud, or asks a question.
+        blocked or suspicious attempt, a locked account or fraud, or asks the recipient to confirm, deny or take
+        an action beyond a generic 'if this wasn't you' footer.
 
   receipt_done:
     type: noul
@@ -182,7 +184,10 @@ questions:
       "true": >-
         A completed purchase, payment, renewal, refund, ride or visit. Return policies, warranty notes, 'keep
         this for your records', auto-renewal reminders and links to manage a subscription do not make it incomplete.
-      "false": A payment, form or pickup still to be done, or a ticket, itinerary, reservation or appointment for a future date.
+      "false": >-
+        The recipient still has to pay, submit a form or pick something up for this transaction (a future
+        renewal or next billing date does not count); a ticket, itinerary, reservation or appointment for a
+        future date; or a signed contract, lease, waiver, certificate, license or closing document.
 
   order_done:
     type: noul
@@ -194,7 +199,9 @@ questions:
         food and grocery orders; anything they report is over or moot a week later.
       "false": >-
         Something likely still open after a week: a return or refund to start or finish, a package held for
-        pickup at a carrier or locker, a lost or damaged order, or a question the recipient must answer.
+        pickup at a carrier, locker, mailroom or building package room, a lost or damaged order, something the
+        recipient must schedule, approve or review by a date, a marketplace seller message or support ticket
+        reply, or a question the recipient must answer.
 
   subscription:
     type: noul
@@ -217,21 +224,21 @@ rules:
     when: {email_type.login_code: ">= 0.5"}
     action: trash
     after: 24h
-    confirm: {code_disposable: ">= 0.7"}
+    confirm: {code_disposable: ">= 0.6"}
 
   - name: security
     label: Security
     when: {email_type.security_alert: ">= 0.5"}
     action: archive
     after: 24h
-    confirm: {alert_routine: ">= 0.8"}
+    confirm: {alert_routine: ">= 0.75"}
 
   - name: receipts
     label: Receipts
     when: {email_type.receipt: ">= 0.5"}
     action: archive
     after: 7d
-    confirm: {receipt_done: ">= 0.8"}
+    confirm: {receipt_done: ">= 0.75"}
 
   - name: orders
     label: Orders
