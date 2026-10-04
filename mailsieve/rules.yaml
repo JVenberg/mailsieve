@@ -130,17 +130,6 @@ questions:
       other:
         what: Fits none of the types above.
 
-  login_code_present:
-    type: noul
-    instructions: >-
-      Does `body` contain a one-time code, or a link or button, that the recipient must enter or click
-      to complete a sign-in, verify their identity, approve a device, or reset a password?
-    criteria:
-      "true": A code to enter or a link to click to complete sign-in, verification, device approval or a password reset.
-      "false": >-
-        Only reports what happened. Links offered only in case it was not the recipient, such as 'reset your
-        password', 'secure your account' or 'report this', do not count.
-
   code_disposable:
     type: noul
     instructions: >-
@@ -190,31 +179,33 @@ questions:
 rules:
   - name: codes
     label: Codes
-    when:
-      any:
-        - all: [{email_type: login_code}, {email_type.login_code: ">= 0.5"}]
-        - all: [{email_type: security_alert}, {login_code_present: ">= 0.9"}]
+    when: {email_type.login_code: ">= 0.5"}
     action: trash
     after: 24h
     confirm: {code_disposable: ">= 0.7"}
 
   - name: security
     label: Security
-    when: {email_type: security_alert}
+    when: {email_type.security_alert: ">= 0.5"}
     action: archive
     after: 24h
     confirm: {alert_routine: ">= 0.8"}
 
   - name: receipts
     label: Receipts
-    when: {email_type: receipt}
+    when: {email_type.receipt: ">= 0.5"}
     action: archive
     after: 7d
     confirm: {receipt_done: ">= 0.8"}
 
   - name: unwanted
     label: Ads
-    when: {email_type: [marketing, survey, political, fundraising]}
+    when:
+      any:
+        - {email_type.marketing: ">= 0.5"}
+        - {email_type.survey: ">= 0.5"}
+        - {email_type.political: ">= 0.5"}
+        - {email_type.fundraising: ">= 0.5"}
     action: unsubscribe
     confirm: {all: [{fact.unsubscribable: true}, {subscription: ">= 0.7"}]}
 

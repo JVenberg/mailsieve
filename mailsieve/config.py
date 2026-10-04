@@ -132,7 +132,7 @@ def matches(cond: dict, answers: dict) -> bool:
             elif "choice" in a and not option:
                 ok = a["choice"] in (val if isinstance(val, list) else [val])
             else:
-                p = a["probabilities"][option] if option else a["noul"]
+                p = a["probabilities"].get(option, 0.0) if option else a["noul"]
                 op, cutoff = CUTOFF.match(str(val)).groups()
                 ok = OPS[op](p, float(cutoff))
         if not ok:

@@ -5,10 +5,7 @@ from mailsieve import config
 
 def answers(email_type="app_notification", **nouls):
     a = {"email_type": {"choice": email_type, "probabilities": {email_type: 0.9}}}
-    a |= {
-        q: {"noul": nouls.get(q, 0.0)}
-        for q in ("login_code_present", "code_disposable", "alert_routine", "receipt_done", "subscription")
-    }
+    a |= {q: {"noul": nouls.get(q, 0.0)} for q in ("code_disposable", "alert_routine", "receipt_done", "subscription")}
     return a
 
 
@@ -21,8 +18,8 @@ def cfg():
     "a, rule",
     [
         (answers("login_code"), "codes"),
-        (answers("security_alert", login_code_present=0.95), "codes"),
-        (answers("security_alert", login_code_present=0.3), "security"),
+        (answers("security_alert"), "security"),
+        (answers("fundraising"), "unwanted"),
         (answers("receipt"), "receipts"),
         (answers("marketing"), "unwanted"),
         (answers("political"), "unwanted"),
@@ -54,7 +51,7 @@ def test_confirm(cfg, rule, a, facts, ok):
 
 
 def test_routing_questions_exclude_confirm_only(cfg):
-    assert cfg.routing_questions == ["email_type", "login_code_present"]
+    assert cfg.routing_questions == ["email_type"]
 
 
 def test_fingerprint_tracks_wording(cfg):
@@ -100,7 +97,8 @@ def test_parse_duration():
         config.parse_duration("1w")
 
 
-def test_login_code_needs_type_confidence(cfg):
-    a = answers("login_code")
-    a["email_type"]["probabilities"]["login_code"] = 0.3
+@pytest.mark.parametrize("email_type", ["login_code", "security_alert", "receipt", "marketing"])
+def test_action_rules_need_type_confidence(cfg, email_type):
+    a = answers(email_type)
+    a["email_type"]["probabilities"][email_type] = 0.3
     assert config.first_match(cfg.rules, a) is None
