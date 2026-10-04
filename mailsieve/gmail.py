@@ -1,6 +1,7 @@
 """Gmail client and message helpers."""
 
 import base64
+import email.utils
 import html
 import json
 import os
@@ -89,6 +90,7 @@ UNSUB_LINK = re.compile(
     r"|>\s*(unsubscribe|opt[ -]?out|manage (your )?(email )?preferences)\b",
     re.IGNORECASE,
 )
+UNSUB_MAILTO = re.compile(r"mailto:[^\s\"'>]*\?subject=[^\"'>]*unsubscribe", re.IGNORECASE)
 JUNK_PLAIN = re.compile(r"bodyplain|html (e-?mail )?reader|^[^{}]{0,200}\{[^}]*:[^}]*\}", re.IGNORECASE)
 FILLER = re.compile("[\u00ad\u034f\u200b-\u200f\u2060\ufeff]")
 CATEGORIES = {"CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS"}
@@ -119,12 +121,33 @@ def body_text(msg: dict) -> str:
     return plain
 
 
+def unsubscribe_via(msg: dict) -> str:
+    """gmail: one-click List-Unsubscribe (Gmail's button, instant); email: a mailto address to write to;
+    link: a web page to visit; none."""
+    headers = {h["name"].lower(): h["value"] for h in msg["payload"].get("headers", [])}
+    header = headers.get("list-unsubscribe", "")
+    if "list-unsubscribe-post" in headers and "<http" in header:
+        return "gmail"
+    if "<mailto:" in header:
+        return "email"
+    if "<http" in header:
+        return "link"
+    plain, html_ = _bodies(msg)
+    if UNSUB_MAILTO.search(html_ + plain):
+        return "email"
+    if UNSUB_LINK.search(html_) or "unsubscribe" in plain.lower():
+        return "link"
+    return "none"
+
+
+def sender(msg: dict) -> str:
+    headers = {h["name"].lower(): h["value"] for h in msg["payload"].get("headers", [])}
+    return email.utils.parseaddr(headers.get("from", ""))[1].lower()
+
+
 def facts(msg: dict) -> dict:
     """Things code can tell for certain, used by rule conditions but never asked of Jev."""
-    headers = {h["name"].lower() for h in msg["payload"].get("headers", [])}
-    plain, html_ = _bodies(msg)
-    unsub = "list-unsubscribe" in headers or bool(UNSUB_LINK.search(html_)) or "unsubscribe" in plain.lower()
-    return {"unsubscribable": unsub}
+    return {"unsubscribe": unsubscribe_via(msg)}
 
 
 def summarize(msg: dict, body_chars: int) -> dict:

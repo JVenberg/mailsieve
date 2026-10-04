@@ -27,13 +27,16 @@ def label_query(name: str) -> str:
     return 'label:"' + name.replace('"', "") + '"'
 
 
-UNSUBSCRIBE = "Unsubscribe"
+UNSUBSCRIBE = {"gmail": "Unsubscribe/Gmail", "email": "Unsubscribe/Email", "link": "Unsubscribe/Link"}
+MIXED_SENDER = "Unsubscribe/Mixed sender"
 
 
-def action_label(rule: Rule) -> str:
+def action_label(rule: Rule, facts: dict | None = None) -> str:
     """Label marking mail whose rule confirmed its action. Archive/trash ones are hidden and the sweep
-    acts on them; unsubscribe is a visible to-do label."""
-    return UNSUBSCRIBE if rule.action == "unsubscribe" else f"mailsieve/{rule.name}"
+    acts on them; unsubscribe is a visible to-do label named for how to unsubscribe."""
+    if rule.action == "unsubscribe":
+        return UNSUBSCRIBE[(facts or {}).get("unsubscribe", "link")]
+    return f"mailsieve/{rule.name}"
 
 
 def ask(cache, cfg: Config, mid: str, state: dict, qids: list[str]) -> tuple[dict, int]:
@@ -84,9 +87,7 @@ def classify(
     query = query or f"in:inbox {PENDING_WINDOW}"
     ids = gmail.search(svc, f"{query} -{label_query(SEEN)} {guard(cfg)}", limit)
     hidden = [SEEN] + [action_label(r) for r in cfg.rules if r.action in ("archive", "trash")]
-    visible = {r.label for r in cfg.rules if r.label} | {
-        action_label(r) for r in cfg.rules if r.action == "unsubscribe"
-    }
+    visible = {r.label for r in cfg.rules if r.label} | set(UNSUBSCRIBE.values()) | {MIXED_SENDER}
     names = hidden + sorted(visible)
     labels = {} if dry_run else gmail.label_ids(svc, names, hidden=tuple(hidden))
     local = threading.local()
@@ -97,7 +98,10 @@ def classify(
         s = local.svc if workers > 1 else svc
         msg = gmail.execute(s.users().messages().get(userId="me", id=mid, format="full"))
         state = gmail.summarize(msg, cfg.body_chars)
-        d = decide(cache, cfg, mid, state, gmail.facts(msg))
+        address = gmail.sender(msg)
+        facts = gmail.facts(msg) | {"mixed_sender": bool(cache.sender_types(address) & set(cfg.mixed_sender_types))}
+        d = decide(cache, cfg, mid, state, facts)
+        cache.note_sender(address, d["answers"]["email_type"])
         rule = d["rule"]
         result = {
             "id": mid,
@@ -106,6 +110,8 @@ def classify(
             "rule": rule.name if rule else None,
             "label": rule.label if rule else None,
             "action": rule.action if d["confirmed"] else None,
+            "unsubscribe": facts["unsubscribe"],
+            "mixed_sender": facts["mixed_sender"],
             "answers": d["answers"],
             "jev_calls": d["asked"],
             "dry_run": dry_run,
@@ -113,10 +119,12 @@ def classify(
         log("classified", **result)
         if not dry_run:
             add = [labels[SEEN]]
-            if rule and rule.label:
+            if rule and rule.label and (rule.label_on == "match" or d["confirmed"]):
                 add.append(labels[rule.label])
             if d["confirmed"]:
-                add.append(labels[action_label(rule)])
+                add.append(labels[action_label(rule, facts)])
+                if rule.action == "unsubscribe" and facts["mixed_sender"]:
+                    add.append(labels[MIXED_SENDER])
             gmail.modify(s, [mid], add=add)
         return result
 

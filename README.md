@@ -8,11 +8,12 @@ unsubscribing.
 
 ## How decisions are made
 
-1. **Route.** One exhaustive question, `email_type`, puts every email in exactly one of 22 types
+1. **Route.** One exhaustive question, `email_type`, puts every email in exactly one of 23 types
    (login_code, security_alert, receipt, booking, marketing, newsletter, personal, official, ... other).
-   Each type has a definition, exclusions and examples.
+   Each type has a definition, exclusions and examples. Action rules also require Jev to give the type
+   at least 0.5 probability.
 2. **Settle overlaps.** A separate yes/no question exists only where a rule depends on telling two
-   types apart, e.g. a security alert that actually contains a login code.
+   types apart. The defaults need none.
 3. **Confirm.** Before any action, the matched rule asks one yes/no question about the property that
    makes the action safe. Only if it passes is the action scheduled; otherwise the email is just labeled.
 
@@ -20,11 +21,15 @@ The defaults in [`mailsieve/rules.yaml`](mailsieve/rules.yaml):
 
 | Rule | When | Confirm | Label | Action |
 |---|---|---|---|---|
-| codes | login_code, or security_alert containing a code | worthless once used | Codes | trash after 24h |
+| codes | login_code | worthless once used | Codes | trash after 24h |
 | security | security_alert | routine, nothing to do | Security | archive after 24h |
 | receipts | receipt | nothing to do, nothing upcoming | Receipts | archive after 7d |
-| unwanted | marketing, survey, political | unsubscribable list mail | Ads | mark Unsubscribe |
+| orders | order_update | routine status, nothing to do | Orders | archive after 7d |
+| unwanted | marketing, survey, political, fundraising | unsubscribable list mail | Ads | mark Unsubscribe/Gmail, /Email or /Link |
 | spam | spam_scam | | Spam? | label only |
+
+Unsubscribe labels say how: Gmail (one-click, Gmail's own Unsubscribe button), Email (send to a mailto
+address) or Link (visit a page).
 
 Starred mail, mail from you, and replies/forwards are never touched. Trash is Gmail's 30-day trash, never a
 permanent delete.

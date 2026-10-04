@@ -7,7 +7,7 @@ def answers(email_type="app_notification", **nouls):
     a = {"email_type": {"choice": email_type, "probabilities": {email_type: 0.9}}}
     a |= {
         q: {"noul": nouls.get(q, 0.0)}
-        for q in ("login_code_present", "code_disposable", "alert_routine", "receipt_done", "subscription")
+        for q in ("code_disposable", "alert_routine", "receipt_done", "order_done", "subscription")
     }
     return a
 
@@ -21,9 +21,10 @@ def cfg():
     "a, rule",
     [
         (answers("login_code"), "codes"),
-        (answers("security_alert", login_code_present=0.95), "codes"),
-        (answers("security_alert", login_code_present=0.3), "security"),
+        (answers("security_alert"), "security"),
+        (answers("fundraising"), "unwanted"),
         (answers("receipt"), "receipts"),
+        (answers("order_update"), "orders"),
         (answers("marketing"), "unwanted"),
         (answers("political"), "unwanted"),
         (answers("spam_scam"), "spam"),
@@ -43,9 +44,9 @@ def test_routing(cfg, a, rule):
         ("codes", answers(code_disposable=0.5), {}, False),
         ("receipts", answers(receipt_done=0.95), {}, True),
         ("receipts", answers(receipt_done=0.2), {}, False),
-        ("unwanted", answers(subscription=0.9), {"unsubscribable": True}, True),
-        ("unwanted", answers(subscription=0.9), {"unsubscribable": False}, False),
-        ("unwanted", answers(subscription=0.3), {"unsubscribable": True}, False),
+        ("unwanted", answers(subscription=0.9), {"unsubscribe": "gmail"}, True),
+        ("unwanted", answers(subscription=0.9), {"unsubscribe": "none"}, False),
+        ("unwanted", answers(subscription=0.3), {"unsubscribe": "link"}, False),
     ],
 )
 def test_confirm(cfg, rule, a, facts, ok):
@@ -54,7 +55,7 @@ def test_confirm(cfg, rule, a, facts, ok):
 
 
 def test_routing_questions_exclude_confirm_only(cfg):
-    assert cfg.routing_questions == ["email_type", "login_code_present"]
+    assert cfg.routing_questions == ["email_type"]
 
 
 def test_fingerprint_tracks_wording(cfg):
@@ -100,7 +101,24 @@ def test_parse_duration():
         config.parse_duration("1w")
 
 
-def test_login_code_needs_type_confidence(cfg):
-    a = answers("login_code")
-    a["email_type"]["probabilities"]["login_code"] = 0.3
+@pytest.mark.parametrize("email_type", ["login_code", "security_alert", "receipt", "marketing"])
+def test_action_rules_need_type_confidence(cfg, email_type):
+    a = answers(email_type)
+    a["email_type"]["probabilities"][email_type] = 0.3
     assert config.first_match(cfg.rules, a) is None
+
+
+def test_unwanted_labels_only_when_confirmed(cfg):
+    assert next(r for r in cfg.rules if r.name == "unwanted").label_on == "confirm"
+    assert "finance" in cfg.mixed_sender_types
+
+
+def test_sender_types_roundtrip(tmp_path):
+    from mailsieve.cache import SqliteCache
+
+    c = SqliteCache(tmp_path / "a.db")
+    c.note_sender("news@shop.com", "marketing")
+    c.note_sender("news@shop.com", "receipt")
+    c.note_sender("news@shop.com", "receipt")
+    assert c.sender_types("news@shop.com") == {"marketing", "receipt"}
+    assert c.sender_types("other@shop.com") == set()

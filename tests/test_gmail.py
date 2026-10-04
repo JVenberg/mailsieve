@@ -37,15 +37,24 @@ def test_body_keeps_real_plain_text():
     assert gmail.body_text(msg(part("text/plain", text), part("text/html", HTML))) == text
 
 
+ONE_CLICK = [("List-Unsubscribe", "<https://x.com/u/1>"), ("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")]
+
+
 @pytest.mark.parametrize(
-    "m, ok",
+    "m, via",
     [
-        (msg(part("text/html", "<p>hi</p>"), headers=[("List-Unsubscribe", "<mailto:x@y>")]), True),
-        (msg(part("text/html", '<a href="https://x.com/unsubscribe?u=1">here</a>')), True),
-        (msg(part("text/html", '<a href="https://click.x.com/abc">Unsubscribe</a>')), True),
-        (msg(part("text/plain", "To unsubscribe, reply STOP.")), True),
-        (msg(part("text/html", "<p>Your receipt</p>")), False),
+        (msg(part("text/html", "<p>hi</p>"), headers=ONE_CLICK), "gmail"),
+        (
+            msg(part("text/html", "<p>hi</p>"), headers=[("List-Unsubscribe", "<mailto:x@y>, <https://x.com/u>")]),
+            "email",
+        ),
+        (msg(part("text/html", "<p>hi</p>"), headers=[("List-Unsubscribe", "<https://x.com/u>")]), "link"),
+        (msg(part("text/html", '<a href="https://x.com/unsubscribe?u=1">here</a>')), "link"),
+        (msg(part("text/html", '<a href="https://click.x.com/abc">Unsubscribe</a>')), "link"),
+        (msg(part("text/plain", "To unsubscribe, reply STOP.")), "link"),
+        (msg(part("text/html", '<a href="mailto:list@x.com?subject=Unsubscribe">Stop</a>')), "email"),
+        (msg(part("text/html", "<p>Your receipt</p>")), "none"),
     ],
 )
-def test_unsubscribable(m, ok):
-    assert gmail.facts(m)["unsubscribable"] is ok
+def test_unsubscribe_via(m, via):
+    assert gmail.facts(m)["unsubscribe"] == via
