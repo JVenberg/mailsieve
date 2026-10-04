@@ -1,6 +1,7 @@
 """Gmail client and message helpers."""
 
 import base64
+import email.utils
 import html
 import json
 import os
@@ -137,6 +138,11 @@ def unsubscribe_via(msg: dict) -> str:
     if UNSUB_LINK.search(html_) or "unsubscribe" in plain.lower():
         return "link"
     return "none"
+
+
+def sender(msg: dict) -> str:
+    headers = {h["name"].lower(): h["value"] for h in msg["payload"].get("headers", [])}
+    return email.utils.parseaddr(headers.get("from", ""))[1].lower()
 
 
 def facts(msg: dict) -> dict:

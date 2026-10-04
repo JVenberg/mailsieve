@@ -106,3 +106,19 @@ def test_action_rules_need_type_confidence(cfg, email_type):
     a = answers(email_type)
     a["email_type"]["probabilities"][email_type] = 0.3
     assert config.first_match(cfg.rules, a) is None
+
+
+def test_unwanted_labels_only_when_confirmed(cfg):
+    assert next(r for r in cfg.rules if r.name == "unwanted").label_on == "confirm"
+    assert "finance" in cfg.mixed_sender_types
+
+
+def test_sender_types_roundtrip(tmp_path):
+    from mailsieve.cache import SqliteCache
+
+    c = SqliteCache(tmp_path / "a.db")
+    c.note_sender("news@shop.com", "marketing")
+    c.note_sender("news@shop.com", "receipt")
+    c.note_sender("news@shop.com", "receipt")
+    assert c.sender_types("news@shop.com") == {"marketing", "receipt"}
+    assert c.sender_types("other@shop.com") == set()

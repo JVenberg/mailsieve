@@ -15,7 +15,7 @@ RULES_PATH = Path(__file__).parent / "rules.yaml"
 OPS = {">=": operator.ge, ">": operator.gt, "<=": operator.le, "<": operator.lt}
 CUTOFF = re.compile(r"^\s*(>=|>|<=|<)\s*([0-9.]+)\s*$")
 ACTIONS = {"archive", "trash", "unsubscribe"}
-FACTS = {"unsubscribe": {"gmail", "email", "link", "none"}}
+FACTS = {"unsubscribe": {"gmail", "email", "link", "none"}, "mixed_sender": {True, False}}
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,7 @@ class Rule:
     action: str | None = None
     after_seconds: int | None = None
     confirm: dict = field(default_factory=dict)
+    label_on: str = "match"
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class Config:
     protect: list[str]
     questions: dict
     rules: list[Rule]
+    mixed_sender_types: tuple[str, ...] = ()
 
     @property
     def routing_questions(self) -> list[str]:
@@ -68,6 +70,8 @@ def load(path: Path = RULES_PATH) -> Config:
             raise ValueError(f"rule {r['name']}: an action needs a `confirm` safety check")
         if action in ("archive", "trash") and "after" not in r:
             raise ValueError(f"rule {r['name']}: {action} needs `after`")
+        if r.get("label_on", "match") not in ("match", "confirm"):
+            raise ValueError(f"rule {r['name']}: label_on must be match or confirm")
         rule = Rule(
             r["name"],
             r["when"],
@@ -75,11 +79,19 @@ def load(path: Path = RULES_PATH) -> Config:
             action,
             parse_duration(r["after"]) if "after" in r else None,
             r.get("confirm", {}),
+            r.get("label_on", "match"),
         )
         _check(rule.when, raw["questions"], rule.name)
         _check(rule.confirm, raw["questions"], rule.name)
         rules.append(rule)
-    return Config(raw["model"], raw["body_chars"], raw["protect"], raw["questions"], rules)
+    return Config(
+        raw["model"],
+        raw["body_chars"],
+        raw["protect"],
+        raw["questions"],
+        rules,
+        tuple(raw.get("mixed_sender_types", ())),
+    )
 
 
 def referenced(cond: dict) -> set[str]:

@@ -5,7 +5,7 @@
 #
 # Rules: checked in order; the first rule whose `when` matches wins.
 #   when:    which emails the rule covers (usually an email_type)
-#   label:   Gmail label applied as soon as `when` matches
+#   label:   Gmail label applied when `when` matches (or only once confirmed, with `label_on: confirm`)
 #   action:  archive | trash | unsubscribe (labels Unsubscribe/Gmail, /Email or /Link by method)
 #   confirm: safety check, asked only after `when` matched; the action happens only if it passes
 #   after:   archive/trash wait this long (24h, 7d); unsubscribe is marked immediately
@@ -19,6 +19,10 @@
 
 model: "~typesafe/jev-latest"
 body_chars: 1500
+
+# An unsubscribe mark also gets "Unsubscribe/Mixed sender" when the same address has sent these types,
+# since unsubscribing might stop that mail too.
+mixed_sender_types: [finance, bill_due, official, booking, community, work_school, newsletter]
 
 # Messages matching any of these Gmail searches are never classified or touched.
 protect: ["is:starred", "from:me", "subject:re", "subject:fwd", "subject:fw"]
@@ -70,11 +74,18 @@ questions:
         examples: ["Invitation: Sync @ Tue 2pm", "Accepted: Dinner planning"]
       marketing:
         what: Promotion from a business, such as sales, deals, product launches, recommendations, loyalty offers, 'we miss you', abandoned cart reminders.
-        not_for: Newsletters people read for content, surveys, political or charity fundraising, announcements from groups the recipient belongs to.
+        not_for: >-
+          Newsletters people read for content, surveys, political or charity fundraising, announcements from
+          groups the recipient belongs to; prescription refill, ready or overdue reminders; promotional credits
+          or coupons attached to a specific order; loyalty, status or benefit notices about the recipient's own
+          account (points balance or expiring, certificates, passes); back-in-stock or waitlist notices the
+          recipient requested; saved-search alerts (homes, jobs); firmware or product-update notices for owned products.
         examples: ["30% off this weekend", "New in Claude Code", "Your cart is waiting", "Member benefits: 3 months of Nitro", "Tips to get more out of Zoom", "Earn double points this week"]
       survey:
         what: Asks for feedback, a rating, a review or a survey response about a product, service or purchase.
-        not_for: Votes or polls within a club or community the recipient belongs to.
+        not_for: >-
+          Votes or polls within a club or community the recipient belongs to; ratings of a specific support
+          ticket or case; course evaluations; feedback tied to a booking the recipient made.
         examples: ["How did we do?", "Rate your recent order", "We value your insights"]
       newsletter:
         what: Editorial content the recipient subscribed to read, such as newsletters, digests, blog posts, Substack and Patreon posts, news briefings.
@@ -83,14 +94,16 @@ questions:
       community:
         what: Announcements, events and discussion from a group, club, school, alumni association, nonprofit or mailing list the recipient belongs to.
         not_for: Businesses selling products, political campaigns, donation appeals, personal one-to-one messages.
-        examples: ["Green Lake Crew practice schedule", "Vote on regatta dates", "cs-graduating mailing list"]
+        examples: ["Green Lake Crew practice schedule", "Vote on regatta dates", "cs-graduating mailing list", "GLC - Coxswain Fund Request", "GLC Masters News"]
       political:
         what: Political campaigns, parties, PACs and advocacy groups asking for donations, signatures, votes or polls.
         not_for: Government agencies, ballots or official election notices.
         examples: ["Chip in $5 before midnight", "Sign the petition", "Fundraising deadline"]
       fundraising:
         what: Charities, nonprofits, schools, alumni associations and causes asking for a donation.
-        not_for: Political campaigns, receipts for donations already made.
+        not_for: >-
+          Political campaigns, receipts for donations already made, money requests from a club or team the
+          recipient belongs to (dues, coach gifts, team funds), event invitations from the recipient's own school.
         examples: ["Give today to double your impact", "Your gift can help kids this winter", "Support the Annual Fund"]
       personal:
         what: >-
@@ -115,10 +128,16 @@ questions:
         what: A service telling all its users about itself, such as terms or privacy policy updates, price changes, outages, maintenance, feature or product changes affecting the recipient's account.
         not_for: Changes the recipient made to their own account; feature announcements, tips and product news, which are marketing.
         examples: ["We're updating our Terms of Service", "Your plan price is changing", "Scheduled maintenance", "Your account will be closed for inactivity"]
+      support_ticket:
+        what: >-
+          A customer support case the recipient opened: request received auto-replies, replies from support
+          agents, case or warranty claim updates, and ratings of how that ticket was handled.
+        not_for: Order status updates without a support case, general product surveys.
+        examples: ["We've received your request (#48213)", "Case Update: SC364266", "Re: Missing part in my order", "How would you rate the support you received?"]
       app_notification:
         what: Any other automated notification from an app or service about the recipient's own use of it, such as reminders, shared document activity, CI or monitoring alerts, smart home events, usage reports.
         not_for: Anything that fits a more specific type above.
-        examples: ["Your build failed", "Your weekly screen time report", "Someone shared a document with you"]
+        examples: ["Your build failed", "Your weekly screen time report", "Someone shared a document with you", "Refill your specialty prescriptions today", "Back in stock: the item you asked about", "2 new matches in your saved search", "Your points expire tomorrow"]
       spam_scam:
         what: >-
           Unsolicited junk, phishing, fake prizes or invoices, impersonation, or mail from a suspicious sender
@@ -183,10 +202,14 @@ questions:
       Is this a mailing the recipient could stop by unsubscribing, without losing any receipts,
       account, security or service emails they need?
     criteria:
-      "true": Promotional, newsletter, survey, political, fundraising, loyalty or rewards mail sent to a list.
+      "true": Promotional, survey, political, fundraising or rewards-offer mail sent to a list.
       "false": >-
-        Transactional, account, security, legal or personal mail, or mail whose unsubscribe would also
-        stop needed notices.
+        Transactional, account, security, legal or personal mail, or mail whose unsubscribe would also stop
+        needed notices. Also: mail from a club, team, school, course or alumni list the recipient belongs to;
+        posts or newsletters the recipient subscribed to read; a sender that also delivers statements, claims,
+        bills, receipts or appointment notices (banks, lenders, pharmacies, insurers, landlords, clinics);
+        account, loyalty or benefit notices (status, certificates, passes, points, credits) even when phrased
+        as good news.
 
 rules:
   - name: codes
@@ -219,6 +242,7 @@ rules:
 
   - name: unwanted
     label: Ads
+    label_on: confirm
     when:
       any:
         - {email_type.marketing: ">= 0.5"}
