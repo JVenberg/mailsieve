@@ -15,7 +15,7 @@ RULES_PATH = Path(__file__).parent / "rules.yaml"
 OPS = {">=": operator.ge, ">": operator.gt, "<=": operator.le, "<": operator.lt}
 CUTOFF = re.compile(r"^\s*(>=|>|<=|<)\s*([0-9.]+)\s*$")
 ACTIONS = {"archive", "trash", "unsubscribe"}
-FACTS = {"unsubscribable"}
+FACTS = {"unsubscribe": {"gmail", "email", "link", "none"}}
 
 
 @dataclass(frozen=True)
@@ -101,8 +101,9 @@ def _check(cond: dict, questions: dict, rule: str) -> None:
             continue
         qid, _, option = key.partition(".")
         if qid == "fact":
-            if option not in FACTS or not isinstance(val, bool):
-                raise ValueError(f"rule {rule}: {key} must be one of {sorted(FACTS)} with true/false")
+            values = val if isinstance(val, list) else [val]
+            if option not in FACTS or not set(values) <= FACTS[option]:
+                raise ValueError(f"rule {rule}: {key} must be one of {FACTS}")
             continue
         q = questions.get(qid)
         if q is None:
@@ -128,7 +129,7 @@ def matches(cond: dict, answers: dict) -> bool:
             qid, _, option = key.partition(".")
             a = answers[qid]
             if qid == "fact":
-                ok = a[option] == val
+                ok = a[option] in (val if isinstance(val, list) else [val])
             elif "choice" in a and not option:
                 ok = a["choice"] in (val if isinstance(val, list) else [val])
             else:

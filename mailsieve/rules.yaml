@@ -6,7 +6,7 @@
 # Rules: checked in order; the first rule whose `when` matches wins.
 #   when:    which emails the rule covers (usually an email_type)
 #   label:   Gmail label applied as soon as `when` matches
-#   action:  archive | trash | unsubscribe
+#   action:  archive | trash | unsubscribe (labels Unsubscribe/Gmail, /Email or /Link by method)
 #   confirm: safety check, asked only after `when` matched; the action happens only if it passes
 #   after:   archive/trash wait this long (24h, 7d); unsubscribe is marked immediately
 #
@@ -14,7 +14,7 @@
 #   {question: option} / {question: [a, b]}  choice picked one of these
 #   {question.option: ">= 0.6"}             probability of one choice option
 #   {question: ">= 0.8"}                     noul probability cutoff
-#   {fact.name: true}                        fact computed in code: unsubscribable
+#   {fact.unsubscribe: [gmail, email]}       fact computed in code: how to unsubscribe (gmail|email|link|none)
 #   {all: [...]} / {any: [...]}              combine
 
 model: "~typesafe/jev-latest"
@@ -165,6 +165,18 @@ questions:
         this for your records', auto-renewal reminders and links to manage a subscription do not make it incomplete.
       "false": A payment, form or pickup still to be done, or a ticket, itinerary, reservation or appointment for a future date.
 
+  order_done:
+    type: noul
+    instructions: >-
+      A week after this email was sent, would it no longer need the recipient's attention?
+    criteria:
+      "true": >-
+        Order received, shipped, out for delivery, delivered, delayed or ready for pickup notices, including
+        food and grocery orders; anything they report is over or moot a week later.
+      "false": >-
+        Something likely still open after a week: a return or refund to start or finish, a package held for
+        pickup at a carrier or locker, a lost or damaged order, or a question the recipient must answer.
+
   subscription:
     type: noul
     instructions: >-
@@ -198,6 +210,13 @@ rules:
     after: 7d
     confirm: {receipt_done: ">= 0.8"}
 
+  - name: orders
+    label: Orders
+    when: {email_type.order_update: ">= 0.5"}
+    action: archive
+    after: 7d
+    confirm: {order_done: ">= 0.6"}
+
   - name: unwanted
     label: Ads
     when:
@@ -207,7 +226,7 @@ rules:
         - {email_type.political: ">= 0.5"}
         - {email_type.fundraising: ">= 0.5"}
     action: unsubscribe
-    confirm: {all: [{fact.unsubscribable: true}, {subscription: ">= 0.7"}]}
+    confirm: {all: [{fact.unsubscribe: [gmail, email, link]}, {subscription: ">= 0.7"}]}
 
   - name: spam
     label: Spam?

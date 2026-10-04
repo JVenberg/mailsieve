@@ -5,7 +5,10 @@ from mailsieve import config
 
 def answers(email_type="app_notification", **nouls):
     a = {"email_type": {"choice": email_type, "probabilities": {email_type: 0.9}}}
-    a |= {q: {"noul": nouls.get(q, 0.0)} for q in ("code_disposable", "alert_routine", "receipt_done", "subscription")}
+    a |= {
+        q: {"noul": nouls.get(q, 0.0)}
+        for q in ("code_disposable", "alert_routine", "receipt_done", "order_done", "subscription")
+    }
     return a
 
 
@@ -21,6 +24,7 @@ def cfg():
         (answers("security_alert"), "security"),
         (answers("fundraising"), "unwanted"),
         (answers("receipt"), "receipts"),
+        (answers("order_update"), "orders"),
         (answers("marketing"), "unwanted"),
         (answers("political"), "unwanted"),
         (answers("spam_scam"), "spam"),
@@ -40,9 +44,9 @@ def test_routing(cfg, a, rule):
         ("codes", answers(code_disposable=0.5), {}, False),
         ("receipts", answers(receipt_done=0.95), {}, True),
         ("receipts", answers(receipt_done=0.2), {}, False),
-        ("unwanted", answers(subscription=0.9), {"unsubscribable": True}, True),
-        ("unwanted", answers(subscription=0.9), {"unsubscribable": False}, False),
-        ("unwanted", answers(subscription=0.3), {"unsubscribable": True}, False),
+        ("unwanted", answers(subscription=0.9), {"unsubscribe": "gmail"}, True),
+        ("unwanted", answers(subscription=0.9), {"unsubscribe": "none"}, False),
+        ("unwanted", answers(subscription=0.3), {"unsubscribe": "link"}, False),
     ],
 )
 def test_confirm(cfg, rule, a, facts, ok):

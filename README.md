@@ -24,8 +24,12 @@ The defaults in [`mailsieve/rules.yaml`](mailsieve/rules.yaml):
 | codes | login_code | worthless once used | Codes | trash after 24h |
 | security | security_alert | routine, nothing to do | Security | archive after 24h |
 | receipts | receipt | nothing to do, nothing upcoming | Receipts | archive after 7d |
-| unwanted | marketing, survey, political, fundraising | unsubscribable list mail | Ads | mark Unsubscribe |
+| orders | order_update | routine status, nothing to do | Orders | archive after 7d |
+| unwanted | marketing, survey, political, fundraising | unsubscribable list mail | Ads | mark Unsubscribe/Gmail, /Email or /Link |
 | spam | spam_scam | | Spam? | label only |
+
+Unsubscribe labels say how: Gmail (one-click, Gmail's own Unsubscribe button), Email (send to a mailto
+address) or Link (visit a page).
 
 Starred mail, mail from you, and replies/forwards are never touched. Trash is Gmail's 30-day trash, never a
 permanent delete.
