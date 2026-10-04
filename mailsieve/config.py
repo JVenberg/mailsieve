@@ -1,16 +1,21 @@
 """Load rules.yaml and evaluate rule conditions against Jev answers."""
 
+import hashlib
+import json
 import operator
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+from .gmail import STATE_VERSION
+
 RULES_PATH = Path(__file__).parent / "rules.yaml"
 OPS = {">=": operator.ge, ">": operator.gt, "<=": operator.le, "<": operator.lt}
 CUTOFF = re.compile(r"^\s*(>=|>|<=|<)\s*([0-9.]+)\s*$")
-ACTIONS = {"archive", "trash"}
+ACTIONS = {"archive", "trash", "unsubscribe"}
+FACTS = {"unsubscribable"}
 
 
 @dataclass(frozen=True)
@@ -20,6 +25,7 @@ class Rule:
     label: str | None = None
     action: str | None = None
     after_seconds: int | None = None
+    confirm: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -29,6 +35,19 @@ class Config:
     protect: list[str]
     questions: dict
     rules: list[Rule]
+
+    @property
+    def routing_questions(self) -> list[str]:
+        """Asked about every email: everything any rule's `when` refers to."""
+        return sorted({q for r in self.rules for q in referenced(r.when)})
+
+    def fingerprint(self, qid: str) -> str:
+        """Changes whenever the model or the question's wording changes, invalidating cached answers."""
+        q = self.questions[qid]
+        blob = json.dumps(
+            {"model": self.model, "question": q, "state": [STATE_VERSION, self.body_chars]}, sort_keys=True
+        )
+        return hashlib.sha256(blob.encode()).hexdigest()[:16]
 
 
 def parse_duration(text: str) -> int:
@@ -45,12 +64,33 @@ def load(path: Path = RULES_PATH) -> Config:
         action = r.get("action")
         if action and action not in ACTIONS:
             raise ValueError(f"rule {r['name']}: unknown action {action!r}")
-        if action and "after" not in r:
-            raise ValueError(f"rule {r['name']}: action needs `after`")
-        rule = Rule(r["name"], r["when"], r.get("label"), action, parse_duration(r["after"]) if action else None)
+        if action and "confirm" not in r:
+            raise ValueError(f"rule {r['name']}: an action needs a `confirm` safety check")
+        if action in ("archive", "trash") and "after" not in r:
+            raise ValueError(f"rule {r['name']}: {action} needs `after`")
+        rule = Rule(
+            r["name"],
+            r["when"],
+            r.get("label"),
+            action,
+            parse_duration(r["after"]) if "after" in r else None,
+            r.get("confirm", {}),
+        )
         _check(rule.when, raw["questions"], rule.name)
+        _check(rule.confirm, raw["questions"], rule.name)
         rules.append(rule)
     return Config(raw["model"], raw["body_chars"], raw["protect"], raw["questions"], rules)
+
+
+def referenced(cond: dict) -> set[str]:
+    out = set()
+    for key, val in cond.items():
+        if key in ("all", "any"):
+            for c in val:
+                out |= referenced(c)
+        elif not key.startswith("fact."):
+            out.add(key.partition(".")[0])
+    return out
 
 
 def _check(cond: dict, questions: dict, rule: str) -> None:
@@ -60,9 +100,15 @@ def _check(cond: dict, questions: dict, rule: str) -> None:
                 _check(c, questions, rule)
             continue
         qid, _, option = key.partition(".")
+        if qid == "fact":
+            if option not in FACTS or not isinstance(val, bool):
+                raise ValueError(f"rule {rule}: {key} must be one of {sorted(FACTS)} with true/false")
+            continue
         q = questions.get(qid)
         if q is None:
             raise ValueError(f"rule {rule}: unknown question {qid!r}")
+        if q["type"] == "choice" and option and option not in q["criteria"]:
+            raise ValueError(f"rule {rule}: {qid} has no option {option!r}")
         if q["type"] == "choice" and not option:
             for opt in val if isinstance(val, list) else [val]:
                 if opt not in q["criteria"]:
@@ -81,7 +127,9 @@ def matches(cond: dict, answers: dict) -> bool:
         else:
             qid, _, option = key.partition(".")
             a = answers[qid]
-            if "choice" in a and not option:
+            if qid == "fact":
+                ok = a[option] == val
+            elif "choice" in a and not option:
                 ok = a["choice"] in (val if isinstance(val, list) else [val])
             else:
                 p = a["probabilities"][option] if option else a["noul"]

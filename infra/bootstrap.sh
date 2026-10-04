@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-time GCP setup for mailsieve. Idempotent; safe to re-run.
-#   infra/bootstrap.sh setup     APIs, service accounts, GitHub OIDC, secrets, Pub/Sub topic
+#   infra/bootstrap.sh setup     APIs, service accounts, GitHub OIDC, secrets, Pub/Sub topic, Firestore answer cache
 #   infra/bootstrap.sh triggers  after the first deploy: Pub/Sub push + hourly Scheduler sweep
 # Needs: PROJECT (an existing project with billing), REGION, REPO (owner/name).
 set -euo pipefail
@@ -18,9 +18,12 @@ bind() { g projects add-iam-policy-binding "$PROJECT" --member "serviceAccount:$
 setup() {
   g services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
     secretmanager.googleapis.com pubsub.googleapis.com cloudscheduler.googleapis.com \
-    iamcredentials.googleapis.com gmail.googleapis.com
+    iamcredentials.googleapis.com gmail.googleapis.com firestore.googleapis.com
   sa mailsieve-run; sa mailsieve-invoker; sa mailsieve-deploy
   bind "$RUN_SA" roles/secretmanager.secretAccessor
+  bind "$RUN_SA" roles/datastore.user
+  g firestore databases describe --database "(default)" >/dev/null 2>&1 ||
+    g firestore databases create --location "$REGION" --type firestore-native
   for role in roles/run.admin roles/cloudbuild.builds.editor roles/artifactregistry.admin \
     roles/storage.admin roles/serviceusage.serviceUsageConsumer; do bind "$DEPLOY_SA" "$role"; done
   g iam service-accounts add-iam-policy-binding "$RUN_SA" --member "serviceAccount:$DEPLOY_SA" --role roles/iam.serviceAccountUser >/dev/null

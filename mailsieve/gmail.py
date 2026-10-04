@@ -83,24 +83,65 @@ def _parts(payload: dict):
         yield from _parts(p)
 
 
-def summarize(msg: dict, body_chars: int) -> dict:
-    """The small state Jev sees: sender, subject and the start of the body as plain text."""
-    headers = {h["name"].lower(): h["value"] for h in msg["payload"].get("headers", [])}
-    plain = html_body = ""
+STATE_VERSION = 3
+UNSUB_LINK = re.compile(
+    r"href=[\"'][^\"']*(unsubscribe|opt-?out|email-?preferences|manage-?preferences)"
+    r"|>\s*(unsubscribe|opt[ -]?out|manage (your )?(email )?preferences)\b",
+    re.IGNORECASE,
+)
+JUNK_PLAIN = re.compile(r"bodyplain|html (e-?mail )?reader|^[^{}]{0,200}\{[^}]*:[^}]*\}", re.IGNORECASE)
+FILLER = re.compile("[\u00ad\u034f\u200b-\u200f\u2060\ufeff]")
+CATEGORIES = {"CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS"}
+
+
+def _bodies(msg: dict) -> tuple[str, str]:
+    """First text/plain and text/html parts."""
+    plain = html_ = ""
     for p in _parts(msg["payload"]):
         data = p.get("body", {}).get("data")
-        if not data:
-            continue
-        if p.get("mimeType") == "text/plain" and not plain:
+        if data and p.get("mimeType") == "text/plain" and not plain:
             plain = _decode(data)
-        elif p.get("mimeType") == "text/html" and not html_body:
-            html_body = _decode(data)
-    if not plain:
-        plain = html.unescape(
-            re.sub(r"<(style|script).*?</\1>|<[^>]+>", " ", html_body, flags=re.DOTALL | re.IGNORECASE)
-        )
+        elif data and p.get("mimeType") == "text/html" and not html_:
+            html_ = _decode(data)
+    return plain, html_
+
+
+def _html_text(html_: str) -> str:
+    return html.unescape(re.sub(r"<(head|style|script).*?</\1>|<[^>]+>", " ", html_, flags=re.DOTALL | re.IGNORECASE))
+
+
+def body_text(msg: dict) -> str:
+    """Plain text body, taken from the HTML when the text/plain part is missing or junk."""
+    plain, html_ = _bodies(msg)
+    plain = re.sub(r"\s+", " ", FILLER.sub("", plain)).strip()
+    if html_ and (len(plain) < 30 or JUNK_PLAIN.search(plain[:300])):
+        plain = re.sub(r"\s+", " ", FILLER.sub("", _html_text(html_))).strip()
+    return plain
+
+
+def facts(msg: dict) -> dict:
+    """Things code can tell for certain, used by rule conditions but never asked of Jev."""
+    headers = {h["name"].lower() for h in msg["payload"].get("headers", [])}
+    plain, html_ = _bodies(msg)
+    unsub = "list-unsubscribe" in headers or bool(UNSUB_LINK.search(html_)) or "unsubscribe" in plain.lower()
+    return {"unsubscribable": unsub}
+
+
+def summarize(msg: dict, body_chars: int) -> dict:
+    """The small state Jev sees: envelope hints plus the start of the body as plain text.
+
+    Bump STATE_VERSION when this changes so cached answers about the old state are re-asked.
+    """
+    headers = {h["name"].lower(): h["value"] for h in msg["payload"].get("headers", [])}
+    attachments = [p["filename"] for p in _parts(msg["payload"]) if p.get("filename")]
+    category = next((c for c in msg.get("labelIds", []) if c in CATEGORIES), "")
     return {
         "from": headers.get("from", ""),
+        "to": headers.get("to", ""),
         "subject": headers.get("subject", ""),
-        "body": re.sub(r"\s+", " ", plain).strip()[:body_chars],
+        "gmail_category": category.removeprefix("CATEGORY_").lower(),
+        "bulk_mail": bool(headers.get("list-unsubscribe") or headers.get("list-id")),
+        "mailing_list": headers.get("list-id", ""),
+        "attachments": attachments,
+        "body": body_text(msg)[:body_chars],
     }
