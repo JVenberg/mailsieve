@@ -9,7 +9,7 @@ unsubscribing.
 ## How decisions are made
 
 1. **Route.** One exhaustive question, `email_type`, puts every email in exactly one of 23 types
-   (login_code, security_alert, receipt, booking, marketing, newsletter, personal, official, ... other).
+   (login_code, security_alert, receipt, booking, marketing, newsletter, personal, health, government_legal, ... other).
    Each type has a definition, exclusions and examples. Action rules also require Jev to give the type
    at least 0.5 probability.
 2. **Settle overlaps.** A separate yes/no question exists only where a rule depends on telling two

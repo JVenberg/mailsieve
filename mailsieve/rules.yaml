@@ -22,7 +22,7 @@ body_chars: 1500
 
 # An unsubscribe mark also gets "Unsubscribe/Mixed sender" when the same address has sent these types,
 # since unsubscribing might stop that mail too.
-mixed_sender_types: [finance, bill_due, official, booking, community, work_school, newsletter]
+mixed_sender_types: [finance, statement, bill_due, health, government_legal, booking, community, work_school, newsletter]
 
 # Messages matching any of these Gmail searches are never classified or touched.
 protect: ["is:starred", "from:me", "subject:re", "subject:fwd", "subject:fw"]
@@ -35,6 +35,8 @@ questions:
       focus: >-
         Classify by the email's main purpose for the recipient, not every topic it mentions.
         `gmail_category`, `bulk_mail`, `mailing_list` and `attachments` are hints; decide from `subject` and `body`.
+        Promotions are always marketing, even from a bank, clinic, insurer, pharmacy, airline, landlord or other
+        business the recipient uses; the broad types below never include promotional mail.
     criteria:
       login_code:
         what: Delivers a one-time code or link the recipient uses to sign in, verify an email or device, confirm a new account, or reset a password.
@@ -64,7 +66,8 @@ questions:
           fare and payment.
         not_for: >-
           Bills still due, shipping updates, booking confirmations without amounts charged, statements, signed
-          contracts or documents (official), messages written by a person (personal).
+          contracts or documents (government_legal), messages written by a person (personal), offers or
+          coupons for a next purchase (marketing).
         examples: ["Your receipt from Apple", "Your ride with Lyft", "Receipt for Order #37", "AutoPay payment processed"]
       order_update:
         what: Status of a physical order after purchase, such as order received, shipped, out for delivery, delivered, delayed, returned, or package ready for pickup.
@@ -77,7 +80,9 @@ questions:
           Money the recipient still owes or must act on, such as a bill or invoice ready, a credit card, loan,
           medical or utility statement showing a payment due date and amount (even if autopay will cover it),
           payment failed, autopay scheduled, an upcoming subscription renewal or trial-ending charge, low balance.
-        not_for: Completed payments, auto-refills already charged, statements with nothing due, confirmations that autopay was set up (account_change).
+        not_for: >-
+          Completed payments, auto-refills already charged, statements with nothing due (statement), confirmations
+          that autopay was set up (account_change), offers to open or upgrade an account or card (marketing).
         examples: ["Your Puget Sound Energy bill is ready", "Payment failed for your subscription", "Your payment is due Oct 15", "Your subscription will renew on Sep 21 for $7.99"]
       statement:
         what: >-
@@ -100,12 +105,12 @@ questions:
           summaries that mainly promote offers.
         examples: ["Your 1099 is available", "New inquiry on your credit report", "Trade confirmation"]
       booking:
-        what: A reservation, ticket, itinerary or appointment, including confirmations, reminders, check-in, changes and cancellations for flights, hotels, restaurants, events, medical or service appointments.
+        what: A reservation, ticket, itinerary or appointment, including confirmations, reminders, check-in, changes and cancellations for flights, hotels, restaurants, events or service appointments.
         not_for: >-
           Itemized purchase receipts that list amounts charged, even for a future event or flight (receipt);
           order pickup or delivery status (order_update); messages written by a person about the booking
           (personal); pre-trip promotions and 'overdue service' nudges with no scheduled appointment
-          (marketing); lease applications and medical intake records (official).
+          (marketing); medical, dental, vision or vet appointments (health); lease applications (government_legal).
         examples: ["Your flight is booked: SEA to OMA", "Reservation confirmed at JOEY", "Appointment reminder for Thursday", "Your tickets for Saturday"]
       calendar_invite:
         what: >-
@@ -144,7 +149,7 @@ questions:
         not_for: >-
           Coursework, class or TA mailing lists and university administration (work_school); landlord, HOA or
           property management notices (service_notice); government or university compliance notices
-          (official); membership expiry, renewal or registration confirmations (account_change); charity
+          (government_legal); membership expiry, renewal or registration confirmations (account_change); charity
           donation appeals (fundraising); businesses promoting classes, memberships or events to the public
           (marketing); platform alerts such as lost-pet registries or forum digests (app_notification).
         examples: ["Green Lake Crew practice schedule", "Vote on regatta dates", "cs-graduating mailing list", "GLC - Coxswain Fund Request", "GLC Masters News", "Alumni Now Newsletter - February"]
@@ -175,18 +180,26 @@ questions:
           Generic job-board marketing and career-fair blasts, cold recruiter mail, research study recruitment
           and screeners (survey), campus system notifications (app_notification), housing and landlord mail.
         examples: ["Interview scheduling", "Your application to Acme", "Homework 3 feedback"]
-      official:
+      health:
         what: >-
-          Government, court, legal, healthcare provider, insurance or utility notices with legal, medical or
-          civic weight, such as jury duty, court accounts, benefits, test results, policy documents, voting
-          information, lease, contract or closing documents to sign or already signed, and messages waiting in
-          a patient, benefits or government portal.
+          The recipient's own or their pet's healthcare: medical, dental, vision or vet appointments and
+          reminders, visit summaries, test results, messages waiting in a patient portal, prescriptions, refill
+          reminders and pharmacy orders, and health insurance claims, explanations of benefits, coverage and ID cards.
         not_for: >-
-          Balances, statements or bills with an amount due (bill_due); periodic statements with nothing due
-          (statement); refill, reorder or 'time to renew your prescription' prompts (app_notification); savings, enrollment or wellness promotions from insurers,
-          pharmacies and benefit managers (marketing); agency news bulletins (newsletter); address or
-          enrollment confirmations the recipient requested (account_change); appointment bookings.
-        examples: ["King County District Court account details", "Your lab results are ready", "Your ballot has been mailed", "New message in your MyChart account", "Signing complete: lease agreement"]
+          Health marketing, such as wellness tips, savings or enrollment offers, drug manufacturer programs and
+          insurer, pharmacy or clinic newsletters and promotions (marketing); medical bills with an amount due
+          (bill_due); feedback requests (survey); notices sent to all patients about hours or moves (service_notice).
+        examples: ["Your lab results are ready", "New message in your MyChart account", "Appointment reminder: Dr. Lee on Thursday", "Refill your specialty prescriptions today", "Your claim has been processed"]
+      government_legal:
+        what: >-
+          Government, court and legal matters with civic or legal weight, such as jury duty, court or agency
+          accounts, benefits, taxes owed to an agency, voting and ballots, and lease, contract or closing
+          documents to sign or already signed.
+        not_for: >-
+          Agency news bulletins (newsletter); law firm, legal service or government program promotions
+          (marketing); bills with an amount due (bill_due); address or enrollment confirmations the recipient
+          requested (account_change); healthcare (health).
+        examples: ["King County District Court account details", "Your ballot has been mailed", "Signing complete: lease agreement", "Jury summons"]
       social:
         what: Notifications from social networks and community platforms about activity, such as likes, comments, follows, mentions, messages, friend suggestions.
         not_for: Security alerts from those platforms, their marketing, feature or game promotions with no activity on the recipient's account (marketing).
@@ -208,18 +221,18 @@ questions:
           A customer support or warranty case the recipient opened: request received auto-replies, replies from
           support agents, 'reply above this line' threads, chat transcripts, case updates and closures, and
           ratings of how that ticket was handled.
-        not_for: Order status updates without a support case, general product surveys, refunds already issued (receipt).
+        not_for: Order status updates without a support case, general product surveys, refunds already issued (receipt), promotions (marketing).
         examples: ["We've received your request (#48213)", "Case Update: SC364266", "Re: Missing part in my order", "How would you rate the support you received?"]
       app_notification:
         what: >-
           Automated status pings about the recipient's own use of an app or service, such as reminders, shared
           document activity, CI or monitoring alerts, smart home or device events, usage reports, a project or
-          resource expiring on the recipient's account, prescription refill reminders, and out-of-office replies.
+          resource expiring on the recipient's account, and out-of-office replies.
         not_for: >-
-          Anything that fits a more specific type above; messages from a clinician or agency waiting in a portal
-          (official); money owed or vesting (bill_due, finance); messages written by a person and relayed by a
+          Anything that fits a more specific type above; healthcare and prescriptions (health); messages from an
+          agency waiting in a portal (government_legal); money owed or vesting (bill_due, finance); messages written by a person and relayed by a
           platform (personal); re-engagement nudges (marketing).
-        examples: ["Your build failed", "Your weekly screen time report", "Someone shared a document with you", "Refill your specialty prescriptions today", "Back in stock: the item you asked about", "2 new matches in your saved search", "Your points expire tomorrow"]
+        examples: ["Your build failed", "Your weekly screen time report", "Someone shared a document with you", "Back in stock: the item you asked about", "2 new matches in your saved search", "Your points expire tomorrow"]
       spam_scam:
         what: >-
           Unsolicited junk, phishing, fake prizes or invoices, impersonation, or mail from a suspicious sender
