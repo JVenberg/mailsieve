@@ -8,7 +8,7 @@
 #   label:   Gmail label applied when `when` matches (or only once confirmed, with `label_on: confirm`)
 #   action:  archive | trash | unsubscribe (labels Unsubscribe/Gmail, /Email or /Link by method)
 #   confirm: safety check, asked only after `when` matched; the action happens only if it passes
-#   after:   archive/trash wait this long (24h, 7d); unsubscribe is marked immediately
+#   after:   archive/trash wait this long (24h, 7d; 0h archives at classify time); unsubscribe is marked immediately
 #
 # Condition syntax (when/confirm):
 #   {question: option} / {question: [a, b]}  choice picked one of these
@@ -79,17 +79,26 @@ questions:
           payment failed, autopay scheduled, an upcoming subscription renewal or trial-ending charge, low balance.
         not_for: Completed payments, auto-refills already charged, statements with nothing due, confirmations that autopay was set up (account_change).
         examples: ["Your Puget Sound Energy bill is ready", "Payment failed for your subscription", "Your payment is due Oct 15", "Your subscription will renew on Sep 21 for $7.99"]
+      statement:
+        what: >-
+          A periodic statement or account summary is ready, with nothing to pay or do, from a bank, brokerage,
+          retirement plan, loan or mortgage servicer, toll account, payment app or credit monitoring service.
+        not_for: >-
+          Statements showing an amount due and due date (bill_due); tax documents, trade confirmations,
+          escrow analyses and other one-off documents (finance); rewards summaries that mainly promote offers (marketing).
+        examples: ["Your September statement is ready", "Your eStatement is available", "Your monthly account statement is here"]
       finance:
         what: >-
-          Banking, credit, investment and tax information, such as statements with nothing due, tax documents,
+          Banking, credit, investment and tax information, such as tax documents,
           trade confirmations, transfers, deposits and money received (Zelle, Venmo), regulatory disclosures and
           rate changes, credit report or credit inquiry alerts, and correspondence from the recipient's lender,
           advisor or fund manager about their loan or account.
         not_for: >-
-          Any statement that shows a payment due date and amount (bill_due); purchase receipts; new card, PIN,
+          Periodic statements and account summaries (statement), any statement that shows a payment due
+          date and amount (bill_due); purchase receipts; new card, PIN,
           application status or account opened (account_change); bank marketing, including rewards or points
           summaries that mainly promote offers.
-        examples: ["Your September statement is ready", "Your 1099 is available", "New inquiry on your credit report", "Trade confirmation"]
+        examples: ["Your 1099 is available", "New inquiry on your credit report", "Trade confirmation"]
       booking:
         what: A reservation, ticket, itinerary or appointment, including confirmations, reminders, check-in, changes and cancellations for flights, hotels, restaurants, events, medical or service appointments.
         not_for: >-
@@ -173,8 +182,8 @@ questions:
           information, lease, contract or closing documents to sign or already signed, and messages waiting in
           a patient, benefits or government portal.
         not_for: >-
-          Balances, statements or bills with an amount due (bill_due); refill, reorder or 'time to renew your
-          prescription' prompts (app_notification); savings, enrollment or wellness promotions from insurers,
+          Balances, statements or bills with an amount due (bill_due); periodic statements with nothing due
+          (statement); refill, reorder or 'time to renew your prescription' prompts (app_notification); savings, enrollment or wellness promotions from insurers,
           pharmacies and benefit managers (marketing); agency news bulletins (newsletter); address or
           enrollment confirmations the recipient requested (account_change); appointment bookings.
         examples: ["King County District Court account details", "Your lab results are ready", "Your ballot has been mailed", "New message in your MyChart account", "Signing complete: lease agreement"]
@@ -241,6 +250,19 @@ questions:
         recipient would not already know, a registration from a court, government agency or utility, backup or recovery codes, an invitation or application link that stays valid for days, a receipt,
         legal, medical or financial details, a message written by a person, or a warning that an account
         recovery or change is under way.
+
+  credit_score_update:
+    type: noul
+    instructions: >-
+      Is this a routine credit score or credit monitoring update the recipient can check for themselves anytime?
+    criteria:
+      "true": >-
+        A credit score is ready, increased, decreased or changed; a monthly credit report, monitoring or
+        dark-web scan summary; a generic 'you have new alerts, sign in to see them' notice; credit tips.
+      "false": >-
+        Names a specific new inquiry, new account, lender viewing the report, fraud alert, identity theft,
+        freeze or lock change, or anything the recipient must act on; any bank, card or loan statement,
+        transfer, payment or tax document.
 
   alert_routine:
     type: noul
@@ -323,6 +345,24 @@ rules:
     action: archive
     after: 7d
     confirm: {order_done: ">= 0.6"}
+
+  - name: statements
+    label: Statements
+    when: {email_type.statement: ">= 0.5"}
+    action: archive
+    after: 0h
+    confirm: {email_type.statement: ">= 0.7"}
+
+  - name: credit_scores
+    label: Credit
+    label_on: confirm
+    when:
+      any:
+        - {email_type.finance: ">= 0.5"}
+        - {email_type.app_notification: ">= 0.5"}
+    action: trash
+    after: 7d
+    confirm: {credit_score_update: ">= 0.75"}
 
   - name: unwanted
     label: Ads

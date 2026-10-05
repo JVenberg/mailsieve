@@ -125,7 +125,8 @@ def classify(
                 add.append(labels[action_label(rule, facts)])
                 if rule.action == "unsubscribe" and facts["mixed_sender"]:
                     add.append(labels[MIXED_SENDER])
-            gmail.modify(s, [mid], add=add)
+            now = d["confirmed"] and rule.action == "archive" and rule.after_seconds == 0
+            gmail.modify(s, [mid], add=add, remove=["INBOX"] if now else ())
         return result
 
     with ThreadPoolExecutor(workers) as pool:

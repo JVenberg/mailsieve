@@ -122,3 +122,8 @@ def test_sender_types_roundtrip(tmp_path):
     c.note_sender("news@shop.com", "receipt")
     assert c.sender_types("news@shop.com") == {"marketing", "receipt"}
     assert c.sender_types("other@shop.com") == set()
+
+
+def test_statements_archive_at_classify_time(cfg):
+    r = next(r for r in cfg.rules if r.name == "statements")
+    assert (r.action, r.after_seconds, r.label) == ("archive", 0, "Statements")
