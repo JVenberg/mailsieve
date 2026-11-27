@@ -96,22 +96,25 @@ questions:
         what: >-
           Banking, credit, investment and tax information, such as tax documents,
           trade confirmations, transfers, deposits and money received (Zelle, Venmo), regulatory disclosures and
-          rate changes, credit report or credit inquiry alerts, and correspondence from the recipient's lender,
+          rate changes, credit score updates, credit report or credit inquiry alerts, and correspondence from the recipient's lender,
           advisor or fund manager about their loan or account.
         not_for: >-
           Periodic statements and account summaries (statement), any statement that shows a payment due
           date and amount (bill_due); purchase receipts; new card, PIN,
           application status or account opened (account_change); bank marketing, including rewards or points
           summaries that mainly promote offers.
-        examples: ["Your 1099 is available", "New inquiry on your credit report", "Trade confirmation"]
+        examples: ["Your 1099 is available", "New inquiry on your credit report", "Trade confirmation", "Your credit score has changed"]
       booking:
-        what: A reservation, ticket, itinerary or appointment, including confirmations, reminders, check-in, changes and cancellations for flights, hotels, restaurants, events or service appointments.
+        what: >-
+          A reservation, ticket, itinerary or appointment, including confirmations, reminders, check-in, changes
+          and cancellations for flights, hotels, restaurants, events or service appointments, and
+          know-before-you-go details (doors, parking, entry rules) for a show or event the recipient has tickets to.
         not_for: >-
           Itemized purchase receipts that list amounts charged, even for a future event or flight (receipt);
           order pickup or delivery status (order_update); messages written by a person about the booking
           (personal); pre-trip promotions and 'overdue service' nudges with no scheduled appointment
           (marketing); medical, dental, vision or vet appointments (health); lease applications (government_legal).
-        examples: ["Your flight is booked: SEA to OMA", "Reservation confirmed at JOEY", "Appointment reminder for Thursday", "Your tickets for Saturday"]
+        examples: ["Your flight is booked: SEA to OMA", "Reservation confirmed at JOEY", "Appointment reminder for Thursday", "Your tickets for Saturday", "Important information for tonight's show"]
       calendar_invite:
         what: >-
           A calendar invitation or an update, acceptance or cancellation of a meeting sent by a calendar system,
@@ -130,7 +133,8 @@ questions:
           order; loyalty, status or benefit notices about the recipient's own account (points balance or
           expiring, certificates, passes); back-in-stock or waitlist notices the recipient requested;
           saved-search alerts (homes, jobs); firmware or product-update notices for owned products; a card,
-          reward or benefit issued to the recipient and ready to use (co-pay card, member rewards to spend).
+          reward or benefit issued to the recipient and ready to use (co-pay card, member rewards to spend);
+          know-before-you-go details for an event the recipient has tickets to (booking).
         examples: ["30% off this weekend", "New in Claude Code", "Your cart is waiting", "Member benefits: 3 months of Nitro", "Tips to get more out of Zoom", "Earn double points this week"]
       survey:
         what: Asks for feedback, a rating, a review or a survey response about a product, service or purchase, or recruits for a paid research study or screener.
@@ -147,7 +151,10 @@ questions:
           (community); platform alerts such as 'X is live now' or 'new message from X' (app_notification).
         examples: ["The Morning briefing", "New post from a Substack writer", "Weekly digest"]
       community:
-        what: Announcements, events and member discussion from a voluntary group the recipient belongs to, such as clubs, teams, unions, alumni associations, neighborhood or hobby groups, and their mailing lists.
+        what: >-
+          Announcements, events and member discussion from a voluntary group the recipient belongs to, such as
+          clubs, teams, unions, alumni associations, a sport's governing body, neighborhood or hobby groups, and
+          their mailing lists.
         not_for: >-
           Coursework, class or TA mailing lists and university administration (work_school); landlord, HOA or
           property management notices (service_notice); government or university compliance notices
@@ -245,7 +252,8 @@ questions:
         not_for: >-
           Legitimate marketing from a business the recipient has used; payment, e-signature or disbursement
           platforms acting for a business the recipient deals with, where the body names that business, a
-          reference number or property the recipient knows.
+          reference number or property the recipient knows; bulk mail a real organization sends from its own
+          domain, such as a government agency writing from its .gov address (newsletter or marketing).
         examples: ["You won a $500 gift card", "Your account will be suspended, click here", "Re: invoice from an unknown domain"]
       other:
         what: Fits none of the types above.
