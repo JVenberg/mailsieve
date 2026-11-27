@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from . import gmail, jev
 from .cache import open_cache
-from .config import Config, Rule, first_match, matches, referenced
+from .config import Config, Rule, matches, matching, referenced
 
 SEEN = "mailsieve/seen"
 PENDING_WINDOW = "newer_than:3d"
@@ -52,14 +52,19 @@ def ask(cache, cfg: Config, mid: str, state: dict, qids: list[str]) -> tuple[dic
 
 
 def decide(cache, cfg: Config, mid: str, state: dict, known: dict) -> dict:
-    """Route by the routing questions, then ask the matched rule's confirm questions only if it has an action."""
+    """Route by the routing questions; the first matching rule that would label or act on the email takes it.
+    Confirm questions are asked only for matched rules with an action."""
     answers, asked = ask(cache, cfg, mid, state, cfg.routing_questions)
-    rule = first_match(cfg.rules, answers)
-    confirmed = False
-    if rule and rule.action:
-        more, n = ask(cache, cfg, mid, state, sorted(referenced(rule.confirm)))
-        answers, asked = answers | more, asked + n
-        confirmed = matches(rule.confirm, answers | {"fact": known})
+    for rule in matching(cfg.rules, answers):
+        confirmed = False
+        if rule.action:
+            more, n = ask(cache, cfg, mid, state, sorted(referenced(rule.confirm)))
+            answers, asked = answers | more, asked + n
+            confirmed = matches(rule.confirm, answers | {"fact": known})
+        if confirmed or (rule.label and rule.label_on == "match"):
+            break
+    else:
+        rule, confirmed = None, False
     return {
         "rule": rule,
         "confirmed": confirmed,

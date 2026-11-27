@@ -15,7 +15,8 @@ unsubscribing.
 2. **Settle overlaps.** A separate yes/no question exists only where a rule depends on telling two
    types apart. The defaults need none.
 3. **Confirm.** Before any action, the matched rule asks one yes/no question about the property that
-   makes the action safe. Only if it passes is the action scheduled; otherwise the email is just labeled.
+   makes the action safe. Only if it passes is the action scheduled; otherwise the email is just labeled,
+   or, if the rule labels only on confirm, passed to the next rule.
 
 The defaults in [`mailsieve/rules.yaml`](mailsieve/rules.yaml):
 
@@ -25,7 +26,10 @@ The defaults in [`mailsieve/rules.yaml`](mailsieve/rules.yaml):
 | security | security_alert | routine, nothing to do | Security | archive after 24h |
 | receipts | receipt | nothing to do, nothing upcoming | Receipts | archive after 7d |
 | orders | order_update | routine status, nothing to do | Orders | archive after 7d |
-| unwanted | marketing, survey, political, fundraising | unsubscribable list mail | Ads | mark Unsubscribe/Gmail, /Email or /Link |
+| statements | statement | type at 0.7 or more | Statements | archive at once |
+| credit_scores | finance, app_notification | routine credit score update | Credit (on confirm) | trash after 7d |
+| unwanted | marketing, survey, political, fundraising | unsubscribable list mail | Ads (on confirm) | mark Unsubscribe/Gmail, /Email or /Link |
+| promos | marketing, survey | only a promotion or feedback request | Ads (on confirm) | trash after 7d |
 | spam | spam_scam | | Spam? | label only |
 
 Unsubscribe labels say how: Gmail (one-click, Gmail's own Unsubscribe button), Email (send to a mailto
@@ -48,7 +52,7 @@ model and the input format (SQLite in `.cache/` locally, Firestore in Cloud Run)
 
 Edit `rules.yaml` only: extend `email_type` if mail has no fitting type, add a yes/no question only for an
 overlap or an action's safety check, then a rule with `when`, `label`, and optionally `action`, `confirm`
-and `after`. Rules are checked in order and the first match wins. `uv run pytest` validates that every rule
+and `after`. Rules are checked in order; the first that would label or act on the email wins. `uv run pytest` validates that every rule
 references real questions, options and cutoffs, and that every action has a confirm check.
 
 Preview against your real inbox without changing anything:

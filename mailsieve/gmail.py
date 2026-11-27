@@ -37,12 +37,16 @@ def service():
     return build("gmail", "v1", credentials=creds, cache_discovery=False)
 
 
+def _retryable(e: HttpError) -> bool:
+    return e.resp.status in (429, 500, 503) or (e.resp.status == 403 and b"ateLimitExceeded" in e.content)
+
+
 def execute(request):
-    for attempt in range(6):
+    for attempt in range(8):
         try:
             return request.execute()
         except HttpError as e:
-            if e.resp.status not in (429, 500, 503) or attempt == 5:
+            if not _retryable(e) or attempt == 7:
                 raise
             time.sleep(2**attempt)
 

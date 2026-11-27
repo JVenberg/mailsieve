@@ -1,13 +1,21 @@
 import pytest
 
-from mailsieve import config
+from mailsieve import config, engine
 
 
 def answers(email_type="app_notification", **nouls):
     a = {"email_type": {"choice": email_type, "probabilities": {email_type: 0.9}}}
     a |= {
         q: {"noul": nouls.get(q, 0.0)}
-        for q in ("code_disposable", "alert_routine", "receipt_done", "order_done", "subscription")
+        for q in (
+            "code_disposable",
+            "alert_routine",
+            "receipt_done",
+            "order_done",
+            "subscription",
+            "credit_score_update",
+            "promo_disposable",
+        )
     }
     return a
 
@@ -33,8 +41,8 @@ def cfg():
     ],
 )
 def test_routing(cfg, a, rule):
-    match = config.first_match(cfg.rules, a)
-    assert (match.name if match else None) == rule
+    match = config.matching(cfg.rules, a)
+    assert (match[0].name if match else None) == rule
 
 
 @pytest.mark.parametrize(
@@ -105,7 +113,7 @@ def test_parse_duration():
 def test_action_rules_need_type_confidence(cfg, email_type):
     a = answers(email_type)
     a["email_type"]["probabilities"][email_type] = 0.3
-    assert config.first_match(cfg.rules, a) is None
+    assert config.matching(cfg.rules, a) == []
 
 
 def test_unwanted_labels_only_when_confirmed(cfg):
@@ -127,3 +135,33 @@ def test_sender_types_roundtrip(tmp_path):
 def test_statements_archive_at_classify_time(cfg):
     r = next(r for r in cfg.rules if r.name == "statements")
     assert (r.action, r.after_seconds, r.label) == ("archive", 0, "Statements")
+
+
+class FixedCache:
+    def __init__(self, a):
+        self.a = a
+
+    def get(self, mid, fps):
+        return {q: v for q, v in self.a.items() if q in fps}
+
+    def put(self, *args):
+        pass
+
+
+@pytest.mark.parametrize(
+    "a, facts, rule, confirmed",
+    [
+        (answers("finance", credit_score_update=0.1), {"unsubscribe": "none"}, None, False),
+        (answers("finance", credit_score_update=0.9), {"unsubscribe": "none"}, "credit_scores", True),
+        (answers("marketing", subscription=0.9), {"unsubscribe": "gmail"}, "unwanted", True),
+        (answers("marketing", subscription=0.9, promo_disposable=0.9), {"unsubscribe": "none"}, "promos", True),
+        (answers("survey", subscription=0.2, promo_disposable=0.9), {"unsubscribe": "gmail"}, "promos", True),
+        (answers("marketing", promo_disposable=0.2), {"unsubscribe": "none"}, None, False),
+        (answers("fundraising", subscription=0.2), {"unsubscribe": "gmail"}, None, False),
+        (answers("receipt", receipt_done=0.2), {}, "receipts", False),
+    ],
+)
+def test_decide_passes_over_rules_that_would_do_nothing(cfg, monkeypatch, a, facts, rule, confirmed):
+    monkeypatch.setattr(engine.jev, "ask", lambda *_: pytest.fail("asked Jev"))
+    d = engine.decide(FixedCache(a), cfg, "m", {}, facts)
+    assert ((d["rule"].name if d["rule"] else None), d["confirmed"]) == (rule, confirmed)

@@ -1,6 +1,7 @@
 import base64
 
 import pytest
+from googleapiclient.errors import HttpError
 
 from mailsieve import gmail
 
@@ -58,3 +59,26 @@ ONE_CLICK = [("List-Unsubscribe", "<https://x.com/u/1>"), ("List-Unsubscribe-Pos
 )
 def test_unsubscribe_via(m, via):
     assert gmail.facts(m)["unsubscribe"] == via
+
+
+class Flaky:
+    def __init__(self, errors):
+        self.errors = errors
+
+    def execute(self):
+        if self.errors:
+            raise self.errors.pop(0)
+        return "ok"
+
+
+def http_error(status, content=b"{}") -> HttpError:
+    import httplib2
+
+    return HttpError(httplib2.Response({"status": status}), content)
+
+
+def test_execute_retries_per_user_rate_limit(monkeypatch):
+    monkeypatch.setattr(gmail.time, "sleep", lambda s: None)
+    assert gmail.execute(Flaky([http_error(403, b'{"reason": "rateLimitExceeded"}'), http_error(429)])) == "ok"
+    with pytest.raises(HttpError):
+        gmail.execute(Flaky([http_error(403, b'{"reason": "insufficientPermissions"}')]))

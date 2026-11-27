@@ -40,7 +40,7 @@ questions:
     criteria:
       login_code:
         what: Delivers a one-time code or link the recipient uses to sign in, verify an email or device, confirm a new account, or reset a password.
-        not_for: Alerts that a sign-in already happened, password-changed notices, welcome emails, package pickup codes, promo codes, account or registration details from a court or agency.
+        not_for: Alerts that a sign-in already happened, password-changed notices, welcome emails, package pickup codes, promo codes, account or registration details from a court or agency, requests or reminders to verify identity with an ID or documents.
         examples: ["Your verification code is 482913", "Sign in to Slack (magic link)", "Reset your password", "Confirm your email address", "Approve this new device"]
       security_alert:
         what: >-
@@ -129,13 +129,15 @@ questions:
           a pharmacy, clinic or vet the recipient uses; promotional credits or coupons attached to a specific
           order; loyalty, status or benefit notices about the recipient's own account (points balance or
           expiring, certificates, passes); back-in-stock or waitlist notices the recipient requested;
-          saved-search alerts (homes, jobs); firmware or product-update notices for owned products.
+          saved-search alerts (homes, jobs); firmware or product-update notices for owned products; a card,
+          reward or benefit issued to the recipient and ready to use (co-pay card, member rewards to spend).
         examples: ["30% off this weekend", "New in Claude Code", "Your cart is waiting", "Member benefits: 3 months of Nitro", "Tips to get more out of Zoom", "Earn double points this week"]
       survey:
         what: Asks for feedback, a rating, a review or a survey response about a product, service or purchase, or recruits for a paid research study or screener.
         not_for: >-
           Votes or polls within a club or community the recipient belongs to; ratings of a specific support
-          ticket or case; course evaluations; feedback tied to a booking the recipient made.
+          ticket or case; course evaluations; feedback tied to a booking the recipient made; an order or
+          delivery notice that also asks for a rating.
         examples: ["How did we do?", "Rate your recent order", "We value your insights"]
       newsletter:
         what: Writing the recipient subscribed to for its own sake, such as Substack, Patreon and blog posts, independent or news-outlet briefings, and local-news or student-paper digests.
@@ -330,6 +332,21 @@ questions:
         account, loyalty or benefit notices (status, certificates, passes, points, credits) even when phrased
         as good news.
 
+  promo_disposable:
+    type: noul
+    instructions: >-
+      Is this only a promotion, product tip, nudge or feedback request, with nothing the recipient would need
+      to look up later?
+    criteria:
+      "true": >-
+        Sales, deals, offers, onboarding nudges, product tips or news, loyalty offers, and requests to rate,
+        review or take a survey, including ones offering a prize for answering.
+      "false": >-
+        It also carries a receipt, order, booking, account, payment, security, legal, medical or appointment
+        detail; a gift card, credit, certificate or reward the recipient has already earned; a change to the
+        terms, fees, benefits or rules of an account, card or membership the recipient holds; or a message
+        written by a person.
+
 rules:
   - name: codes
     label: Codes
@@ -388,6 +405,17 @@ rules:
         - {email_type.fundraising: ">= 0.5"}
     action: unsubscribe
     confirm: {all: [{fact.unsubscribe: [gmail, email, link]}, {subscription: ">= 0.7"}]}
+
+  - name: promos
+    label: Ads
+    label_on: confirm
+    when:
+      any:
+        - {email_type.marketing: ">= 0.5"}
+        - {email_type.survey: ">= 0.5"}
+    action: trash
+    after: 7d
+    confirm: {promo_disposable: ">= 0.75"}
 
   - name: spam
     label: Spam?

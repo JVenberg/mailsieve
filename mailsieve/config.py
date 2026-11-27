@@ -153,5 +153,5 @@ def matches(cond: dict, answers: dict) -> bool:
     return True
 
 
-def first_match(rules: list[Rule], answers: dict) -> Rule | None:
-    return next((r for r in rules if matches(r.when, answers)), None)
+def matching(rules: list[Rule], answers: dict) -> list[Rule]:
+    return [r for r in rules if matches(r.when, answers)]
