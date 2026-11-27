@@ -72,6 +72,8 @@ def load(path: Path = RULES_PATH) -> Config:
             raise ValueError(f"rule {r['name']}: {action} needs `after`")
         if r.get("label_on", "match") not in ("match", "confirm"):
             raise ValueError(f"rule {r['name']}: label_on must be match or confirm")
+        if r.get("label_on") == "confirm" and "confirm" not in r:
+            raise ValueError(f"rule {r['name']}: label_on: confirm needs a `confirm` check")
         rule = Rule(
             r["name"],
             r["when"],

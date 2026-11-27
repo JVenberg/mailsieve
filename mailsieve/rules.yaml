@@ -338,7 +338,8 @@ questions:
         posts or newsletters the recipient subscribed to read; a sender that also delivers statements, claims,
         bills, receipts or appointment notices (banks, lenders, pharmacies, insurers, landlords, clinics);
         account, loyalty or benefit notices (status, certificates, passes, points, credits) even when phrased
-        as good news.
+        as good news; practical details (doors, parking, entry, schedule) for a ticket, booking or appointment
+        the recipient holds.
 
   promo_disposable:
     type: noul
@@ -354,6 +355,19 @@ questions:
         detail; a gift card, credit, certificate or reward the recipient has already earned; a change to the
         terms, fees, benefits or rules of an account, card or membership the recipient holds; or a message
         written by a person.
+
+  junk_or_scam:
+    type: noul
+    instructions: Is this junk, a scam, or mail pretending to be from someone it is not?
+    criteria:
+      "true": >-
+        Phishing; fake invoices, prizes or account warnings; a display name or brand that does not match the
+        sending domain; gibberish or throwaway sender domains; cold job, assistant or prize offers from
+        strangers asking for a reply.
+      "false": >-
+        The sending domain belongs to the organization named, such as a government agency writing from its
+        .gov address or a company from its own domain, even when the content is promotional or political or
+        links to the organization's other sites.
 
 rules:
   - name: codes
@@ -427,4 +441,6 @@ rules:
 
   - name: spam
     label: Spam?
+    label_on: confirm
     when: {email_type: spam_scam}
+    confirm: {junk_or_scam: ">= 0.6"}

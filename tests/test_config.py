@@ -15,6 +15,7 @@ def answers(email_type="app_notification", **nouls):
             "subscription",
             "credit_score_update",
             "promo_disposable",
+            "junk_or_scam",
         )
     }
     return a
@@ -103,6 +104,13 @@ def test_bad_rules_rejected(tmp_path, when, error):
         config.load(path)
 
 
+def test_label_on_confirm_needs_confirm(tmp_path):
+    path = tmp_path / "rules.yaml"
+    path.write_text(config.RULES_PATH.read_text().replace('confirm: {junk_or_scam: ">= 0.6"}', ""))
+    with pytest.raises(ValueError, match="needs a `confirm` check"):
+        config.load(path)
+
+
 def test_parse_duration():
     assert config.parse_duration("24h") == 86400
     with pytest.raises(ValueError):
@@ -159,6 +167,8 @@ class FixedCache:
         (answers("marketing", promo_disposable=0.2), {"unsubscribe": "none"}, None, False),
         (answers("fundraising", subscription=0.2), {"unsubscribe": "gmail"}, None, False),
         (answers("receipt", receipt_done=0.2), {}, "receipts", False),
+        (answers("spam_scam", junk_or_scam=0.9), {}, "spam", True),
+        (answers("spam_scam", junk_or_scam=0.2), {}, None, False),
     ],
 )
 def test_decide_passes_over_rules_that_would_do_nothing(cfg, monkeypatch, a, facts, rule, confirmed):

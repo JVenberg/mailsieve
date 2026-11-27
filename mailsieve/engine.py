@@ -53,11 +53,11 @@ def ask(cache, cfg: Config, mid: str, state: dict, qids: list[str]) -> tuple[dic
 
 def decide(cache, cfg: Config, mid: str, state: dict, known: dict) -> dict:
     """Route by the routing questions; the first matching rule that would label or act on the email takes it.
-    Confirm questions are asked only for matched rules with an action."""
+    Confirm questions are asked only for matched rules with a confirm check."""
     answers, asked = ask(cache, cfg, mid, state, cfg.routing_questions)
     for rule in matching(cfg.rules, answers):
         confirmed = False
-        if rule.action:
+        if rule.confirm:
             more, n = ask(cache, cfg, mid, state, sorted(referenced(rule.confirm)))
             answers, asked = answers | more, asked + n
             confirmed = matches(rule.confirm, answers | {"fact": known})
@@ -126,7 +126,7 @@ def classify(
             add = [labels[SEEN]]
             if rule and rule.label and (rule.label_on == "match" or d["confirmed"]):
                 add.append(labels[rule.label])
-            if d["confirmed"]:
+            if d["confirmed"] and rule.action:
                 add.append(labels[action_label(rule, facts)])
                 if rule.action == "unsubscribe" and facts["mixed_sender"]:
                     add.append(labels[MIXED_SENDER])

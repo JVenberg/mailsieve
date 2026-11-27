@@ -30,7 +30,7 @@ The defaults in [`mailsieve/rules.yaml`](mailsieve/rules.yaml):
 | credit_scores | finance, app_notification | routine credit score update | Credit (on confirm) | trash after 7d |
 | unwanted | marketing, survey, political, fundraising | unsubscribable list mail | Ads (on confirm) | mark Unsubscribe/Gmail, /Email or /Link |
 | promos | marketing, survey | only a promotion or feedback request | Ads (on confirm) | trash after 7d |
-| spam | spam_scam | | Spam? | label only |
+| spam | spam_scam | junk, scam or impostor | Spam? (on confirm) | label only |
 
 Unsubscribe labels say how: Gmail (one-click, Gmail's own Unsubscribe button), Email (send to a mailto
 address) or Link (visit a page).
