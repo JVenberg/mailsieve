@@ -358,7 +358,10 @@ questions:
 
   junk_or_scam:
     type: noul
-    instructions: Is this junk, a scam, or mail pretending to be from someone it is not?
+    instructions: >-
+      Is this junk, a scam, or mail pretending to be from someone it is not? Judge mainly by whether the
+      sender's address belongs to the organization it claims to be. An unfamiliar program, a political tone,
+      or links to the organization's campaign or app sites do not make it a scam.
     criteria:
       "true": >-
         Phishing; fake invoices, prizes or account warnings; a display name or brand that does not match the
