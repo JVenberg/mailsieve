@@ -88,7 +88,7 @@ def _parts(payload: dict):
         yield from _parts(p)
 
 
-STATE_VERSION = 3
+STATE_VERSION = 4
 UNSUB_LINK = re.compile(
     r"href=[\"'][^\"']*(unsubscribe|opt-?out|email-?preferences|manage-?preferences)"
     r"|>\s*(unsubscribe|opt[ -]?out|manage (your )?(email )?preferences)\b",
@@ -97,6 +97,7 @@ UNSUB_LINK = re.compile(
 UNSUB_MAILTO = re.compile(r"mailto:[^\s\"'>]*\?subject=[^\"'>]*unsubscribe", re.IGNORECASE)
 JUNK_PLAIN = re.compile(r"bodyplain|html (e-?mail )?reader|^[^{}]{0,200}\{[^}]*:[^}]*\}", re.IGNORECASE)
 FILLER = re.compile("[\u00ad\u034f\u200b-\u200f\u2060\ufeff]")
+URL = re.compile(r"https?://([^/\s?#)\]>\"']+)[^\s)\]>\"']*", re.IGNORECASE)
 CATEGORIES = {"CATEGORY_PERSONAL", "CATEGORY_SOCIAL", "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS"}
 
 
@@ -117,12 +118,12 @@ def _html_text(html_: str) -> str:
 
 
 def body_text(msg: dict) -> str:
-    """Plain text body, taken from the HTML when the text/plain part is missing or junk."""
+    """Plain text body, taken from the HTML when the text/plain part is missing or junk. URLs shrink to their host."""
     plain, html_ = _bodies(msg)
     plain = re.sub(r"\s+", " ", FILLER.sub("", plain)).strip()
     if html_ and (len(plain) < 30 or JUNK_PLAIN.search(plain[:300])):
         plain = re.sub(r"\s+", " ", FILLER.sub("", _html_text(html_))).strip()
-    return plain
+    return URL.sub(r"[\1]", plain)
 
 
 def unsubscribe_via(msg: dict) -> str:

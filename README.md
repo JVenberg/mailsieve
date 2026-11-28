@@ -35,6 +35,10 @@ The defaults in [`mailsieve/rules.yaml`](mailsieve/rules.yaml):
 Unsubscribe labels say how: Gmail (one-click, Gmail's own Unsubscribe button), Email (send to a mailto
 address) or Link (visit a page).
 
+Every email gets a label. Mail no rule labels gets its type's label from `type_labels` (Health, Bills,
+Bookings, Groups, Newsletters, Notifications, ...); mail typed spam that fails the spam check gets the label
+of its next most likely type.
+
 Starred mail, mail from you, and replies/forwards are never touched. Trash is Gmail's 30-day trash, never a
 permanent delete.
 

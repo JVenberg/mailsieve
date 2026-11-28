@@ -37,11 +37,18 @@ class Config:
     questions: dict
     rules: list[Rule]
     mixed_sender_types: tuple[str, ...] = ()
+    type_labels: dict = field(default_factory=dict)
 
     @property
     def routing_questions(self) -> list[str]:
         """Asked about every email: everything any rule's `when` refers to."""
         return sorted({q for r in self.rules for q in referenced(r.when)})
+
+    def type_label(self, email_type: dict) -> str | None:
+        """Label for mail no rule labels: that of its most likely type that has one."""
+        p, choice = email_type["probabilities"], email_type["choice"]
+        ranked = sorted(p, key=lambda t: (-p[t], t != choice))
+        return next((self.type_labels[t] for t in ranked if t in self.type_labels), None)
 
     def fingerprint(self, qid: str) -> str:
         """Changes whenever the model or the question's wording changes, invalidating cached answers."""
@@ -86,6 +93,10 @@ def load(path: Path = RULES_PATH) -> Config:
         _check(rule.when, raw["questions"], rule.name)
         _check(rule.confirm, raw["questions"], rule.name)
         rules.append(rule)
+    type_labels = raw.get("type_labels", {})
+    unknown = set(type_labels) - set(raw["questions"]["email_type"]["criteria"])
+    if unknown:
+        raise ValueError(f"type_labels: unknown email types {sorted(unknown)}")
     return Config(
         raw["model"],
         raw["body_chars"],
@@ -93,6 +104,7 @@ def load(path: Path = RULES_PATH) -> Config:
         raw["questions"],
         rules,
         tuple(raw.get("mixed_sender_types", ())),
+        type_labels,
     )
 
 

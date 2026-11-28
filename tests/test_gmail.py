@@ -33,6 +33,11 @@ def test_body_falls_back_to_html_when_plain_is_junk(plain):
     )
 
 
+def test_body_shrinks_urls_to_host():
+    text = "Your receipt ( https://ablink.mail.parkmobile.io/ls/click?upn=u001.MkIq ) see https://x.com/a"
+    assert gmail.body_text(msg(part("text/plain", text))) == "Your receipt ( [ablink.mail.parkmobile.io] ) see [x.com]"
+
+
 def test_body_keeps_real_plain_text():
     text = "Hi Jack, your package was delivered to the front porch today."
     assert gmail.body_text(msg(part("text/plain", text), part("text/html", HTML))) == text

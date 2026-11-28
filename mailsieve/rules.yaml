@@ -53,12 +53,13 @@ questions:
           Confirms a change to the recipient's own account or subscription, such as password, 2FA, passkey,
           email, address or payment method updated, account created or closed, subscription cancelled, paused
           or set not to renew, membership expired or renewed, autopay set up, and government portal
-          confirmations such as address changes or enrollment approvals.
+          confirmations such as address changes or enrollment approvals. Also asks the recipient to verify
+          their identity or update account details to keep an account active.
         not_for: >-
           Codes or links still to be used, sign-in, new device or trusted device alerts, terms or policy
           updates, welcome or onboarding emails that mainly promote features or tips (marketing), messages
           written by staff (personal).
-        examples: ["Your password was changed", "Two-factor authentication enabled", "Your subscription has been cancelled", "Your account is created"]
+        examples: ["Your password was changed", "Two-factor authentication enabled", "Your subscription has been cancelled", "Your account is created", "Your brokerage account is open and funded", "Action required: verify your developer account"]
       receipt:
         what: >-
           A receipt or confirmation for a purchase, payment, donation, refund, ride, delivery order or
@@ -68,11 +69,12 @@ questions:
           Bills still due, shipping updates, booking confirmations without amounts charged, statements, signed
           contracts or documents (government_legal), messages written by a person (personal), offers or
           coupons for a next purchase (marketing).
-        examples: ["Your receipt from Apple", "Your ride with Lyft", "Receipt for Order #37", "AutoPay payment processed"]
+        examples: ["Your receipt from Apple", "Your ride with Lyft", "Receipt for Order #37", "AutoPay payment processed", "Ordered: 2 items (Amazon order confirmation with a grand total)"]
       order_update:
-        what: Status of a physical order after purchase, such as order received, shipped, out for delivery, delivered, delayed, returned, or package ready for pickup.
+        what: Status of a physical order after purchase, such as shipped, out for delivery, delivered, delayed, cancelled, returned, or package ready for pickup.
         not_for: >-
-          The purchase receipt itself, marketing about products, mail-scan digests such as USPS Informed
+          The order confirmation or purchase receipt listing items and total (receipt), even with a shipping
+          progress bar; marketing about products, mail-scan digests such as USPS Informed
           Delivery, gift-card notifications, messages written by a person (personal), support cases (support_ticket).
         examples: ["Your package has shipped", "Delivered: your Amazon order", "You've got a package (locker pickup code)"]
       bill_due:
@@ -108,13 +110,14 @@ questions:
         what: >-
           A reservation, ticket, itinerary or appointment, including confirmations, reminders, check-in, changes
           and cancellations for flights, hotels, restaurants, events or service appointments, and
-          know-before-you-go details (doors, parking, entry rules) for a show or event the recipient has tickets to.
+          know-before-you-go details (doors, parking, traffic, entry rules) for a show or event the recipient has
+          tickets to, even when sent from the venue's newsletter address.
         not_for: >-
           Itemized purchase receipts that list amounts charged, even for a future event or flight (receipt);
           order pickup or delivery status (order_update); messages written by a person about the booking
           (personal); pre-trip promotions and 'overdue service' nudges with no scheduled appointment
           (marketing); medical, dental, vision or vet appointments (health); lease applications (government_legal).
-        examples: ["Your flight is booked: SEA to OMA", "Reservation confirmed at JOEY", "Appointment reminder for Thursday", "Your tickets for Saturday", "Important information for tonight's show"]
+        examples: ["Your flight is booked: SEA to OMA", "Reservation confirmed at JOEY", "Appointment reminder for Thursday", "Your tickets for Saturday", "Important information for tonight's show", "Get ready for the show: doors open one hour prior"]
       calendar_invite:
         what: >-
           A calendar invitation or an update, acceptance or cancellation of a meeting sent by a calendar system,
@@ -154,13 +157,14 @@ questions:
         what: >-
           Announcements, events and member discussion from a voluntary group the recipient belongs to, such as
           clubs, teams, unions, alumni associations, a sport's governing body, neighborhood or hobby groups, and
-          their mailing lists.
+          their mailing lists, including the group's own donation, Giving Tuesday or auction appeals to its members.
         not_for: >-
           Coursework, class or TA mailing lists and university administration (work_school); landlord, HOA or
           property management notices (service_notice); government or university compliance notices
           (government_legal); membership expiry, renewal or registration confirmations (account_change); charity
           donation appeals (fundraising); businesses promoting classes, memberships or events to the public
-          (marketing); platform alerts such as lost-pet registries or forum digests (app_notification).
+          (marketing); letters or introductions from a national organization's CEO or leadership (marketing);
+          platform alerts such as lost-pet registries or forum digests (app_notification).
         examples: ["Green Lake Crew practice schedule", "Vote on regatta dates", "cs-graduating mailing list", "GLC - Coxswain Fund Request", "GLC Masters News", "Alumni Now Newsletter - February"]
       political:
         what: Political campaigns, parties, PACs and advocacy groups asking for donations, signatures, votes or polls.
@@ -170,7 +174,8 @@ questions:
         what: Charities, nonprofits, schools, alumni associations and causes asking for a donation.
         not_for: >-
           Political campaigns, receipts for donations already made, money requests from a club or team the
-          recipient belongs to (dues, coach gifts, team funds), event invitations from the recipient's own school.
+          recipient belongs to (dues, coach gifts, team funds, Giving Tuesday or auction appeals: community),
+          event invitations from the recipient's own school.
         examples: ["Give today to double your impact", "Your gift can help kids this winter", "Support the Annual Fund"]
       personal:
         what: >-
@@ -184,16 +189,20 @@ questions:
           or asking to move to another channel (spam_scam).
         examples: ["Hey, are you free Saturday?", "Fwd: photos from the trip"]
       work_school:
-        what: Work, coursework, research, job applications or recruiting correspondence.
+        what: >-
+          Work, coursework, research, job applications, and recruiters writing about a specific role, including
+          cold outreach from a recruiter at a company's own domain.
         not_for: >-
-          Generic job-board marketing and career-fair blasts, cold recruiter mail, research study recruitment
+          Generic job-board marketing and career-fair blasts, job offers from strangers on free-mail or unrelated
+          domains (spam_scam), research study recruitment
           and screeners (survey), campus system notifications (app_notification), housing and landlord mail.
         examples: ["Interview scheduling", "Your application to Acme", "Homework 3 feedback"]
       health:
         what: >-
           The recipient's own or their pet's healthcare: medical, dental, vision or vet appointments and
           reminders, visit summaries, test results, messages waiting in a patient portal, prescriptions, refill
-          reminders and pharmacy orders, and health insurance claims, explanations of benefits, coverage and ID cards.
+          reminders and pharmacy orders, co-pay or patient-support cards and programs, and health insurance
+          claims, explanations of benefits, coverage and ID cards.
         not_for: >-
           Health marketing, such as wellness tips, savings or enrollment offers, drug manufacturer programs and
           insurer, pharmacy or clinic newsletters and promotions (marketing); medical bills with an amount due
@@ -217,10 +226,11 @@ questions:
         what: >-
           A mandatory notice a service sends every user about the service itself, such as terms, privacy or
           policy updates, price or fee changes, outages, maintenance, shutdowns, deprecations, and deadlines to
-          keep an account or data. Includes notices from a landlord, building or clinic to all residents or
-          patients (hours, closures, moves, maintenance).
+          keep an account or data; changes to a loyalty program's rules or benefits; security advisories about
+          vulnerabilities that the service's users or developers must act on. Includes notices from a landlord,
+          building or clinic to all residents or patients (hours, closures, moves, maintenance).
         not_for: >-
-          New features, launches, tips, security advice, CEO letters, rebrands and 'what's new' mail, which are
+          New features, launches, tips, general security tips, CEO letters, rebrands and 'what's new' mail, which are
           marketing or newsletter even when framed as an important update; anything about the recipient's own
           account, project or subscription only (account_change or app_notification); regulatory disclosures
           from a bank or broker (finance).
@@ -236,7 +246,9 @@ questions:
         what: >-
           Automated status pings about the recipient's own use of an app or service, such as reminders, shared
           document activity, CI or monitoring alerts, smart home or device events, usage reports, a project or
-          resource expiring on the recipient's account, and out-of-office replies.
+          resource expiring on the recipient's account, rewards, points or credits available on the recipient's
+          account, results or recaps of a game or event the recipient took part in, bounced-mail notices, and
+          out-of-office replies.
         not_for: >-
           Anything that fits a more specific type above; healthcare and prescriptions (health); messages from an
           agency waiting in a portal (government_legal); money owed or vesting (bill_due, finance); messages written by a person and relayed by a
@@ -304,8 +316,10 @@ questions:
       Is this a record of something already paid or delivered, with no booking, trip, event or appointment still ahead?
     criteria:
       "true": >-
-        A completed purchase, payment, renewal, refund, ride or visit. Return policies, warranty notes, 'keep
-        this for your records', auto-renewal reminders and links to manage a subscription do not make it incomplete.
+        A completed purchase, payment, renewal, refund, ride or visit, including an order confirmation for goods
+        or food already paid for that are still to ship, arrive or be picked up today. Return policies, warranty
+        notes, 'keep this for your records', auto-renewal reminders and links to manage a subscription do not
+        make it incomplete.
       "false": >-
         The recipient still has to pay, submit a form or pick something up for this transaction (a future
         renewal or next billing date does not count); a ticket, itinerary, reservation or appointment for a
@@ -371,6 +385,35 @@ questions:
         The sending domain belongs to the organization named, such as a government agency writing from its
         .gov address or a company from its own domain, even when the content is promotional or political or
         links to the organization's other sites.
+
+# The label for mail no rule labels, by its most likely email_type. spam_scam has none, so mail Jev types as
+# spam but that fails the spam rule's check takes the label of its next most likely type.
+type_labels:
+  login_code: Codes
+  security_alert: Security
+  account_change: Account
+  receipt: Receipts
+  order_update: Orders
+  bill_due: Bills
+  statement: Statements
+  finance: Finance
+  booking: Bookings
+  calendar_invite: Calendar
+  marketing: Ads
+  survey: Ads
+  newsletter: Newsletters
+  community: Groups
+  political: Ads
+  fundraising: Ads
+  personal: Personal
+  work_school: Work
+  health: Health
+  government_legal: Government
+  social: Social
+  service_notice: Notices
+  support_ticket: Support
+  app_notification: Notifications
+  other: Other
 
 rules:
   - name: codes

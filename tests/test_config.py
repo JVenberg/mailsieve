@@ -175,3 +175,41 @@ def test_decide_passes_over_rules_that_would_do_nothing(cfg, monkeypatch, a, fac
     monkeypatch.setattr(engine.jev, "ask", lambda *_: pytest.fail("asked Jev"))
     d = engine.decide(FixedCache(a), cfg, "m", {}, facts)
     assert ((d["rule"].name if d["rule"] else None), d["confirmed"]) == (rule, confirmed)
+
+
+def test_every_type_but_spam_has_a_label(cfg):
+    assert set(cfg.questions["email_type"]["criteria"]) - set(cfg.type_labels) == {"spam_scam"}
+
+
+@pytest.mark.parametrize(
+    "a, label",
+    [
+        (answers("health"), "Health"),
+        (answers("finance", credit_score_update=0.1), "Finance"),
+        (answers("finance", credit_score_update=0.9), "Credit"),
+        (answers("marketing", promo_disposable=0.2), "Ads"),
+        (answers("receipt", receipt_done=0.2), "Receipts"),
+    ],
+)
+def test_every_email_gets_a_label(cfg, monkeypatch, a, label):
+    monkeypatch.setattr(engine.jev, "ask", lambda *_: pytest.fail("asked Jev"))
+    assert engine.decide(FixedCache(a), cfg, "m", {}, {"unsubscribe": "none"})["label"] == label
+
+
+def test_unconfirmed_spam_takes_next_types_label(cfg, monkeypatch):
+    a = answers("spam_scam", junk_or_scam=0.1)
+    a["email_type"]["probabilities"] = {"spam_scam": 0.6, "newsletter": 0.3, "other": 0.1}
+    monkeypatch.setattr(engine.jev, "ask", lambda *_: pytest.fail("asked Jev"))
+    assert engine.decide(FixedCache(a), cfg, "m", {}, {})["label"] == "Newsletters"
+
+
+def test_type_label_prefers_jevs_choice_on_a_tie(cfg):
+    a = {"choice": "app_notification", "probabilities": {"service_notice": 0.34, "app_notification": 0.34}}
+    assert cfg.type_label(a) == "Notifications"
+
+
+def test_type_labels_must_name_real_types(tmp_path):
+    path = tmp_path / "rules.yaml"
+    path.write_text(config.RULES_PATH.read_text().replace("  other: Other\n", "  nope: Other\n"))
+    with pytest.raises(ValueError, match="unknown email types"):
+        config.load(path)

@@ -65,8 +65,10 @@ def decide(cache, cfg: Config, mid: str, state: dict, known: dict) -> dict:
             break
     else:
         rule, confirmed = None, False
+    label = (rule.label if rule else None) or cfg.type_label(answers["email_type"])
     return {
         "rule": rule,
+        "label": label,
         "confirmed": confirmed,
         "asked": asked,
         "answers": {q: a.get("noul", a.get("choice")) for q, a in answers.items()},
@@ -92,7 +94,8 @@ def classify(
     query = query or f"in:inbox {PENDING_WINDOW}"
     ids = gmail.search(svc, f"{query} -{label_query(SEEN)} {guard(cfg)}", limit)
     hidden = [SEEN] + [action_label(r) for r in cfg.rules if r.action in ("archive", "trash")]
-    visible = {r.label for r in cfg.rules if r.label} | set(UNSUBSCRIBE.values()) | {MIXED_SENDER}
+    visible = {r.label for r in cfg.rules if r.label} | set(cfg.type_labels.values())
+    visible |= set(UNSUBSCRIBE.values()) | {MIXED_SENDER}
     names = hidden + sorted(visible)
     labels = {} if dry_run else gmail.label_ids(svc, names, hidden=tuple(hidden))
     local = threading.local()
@@ -113,7 +116,7 @@ def classify(
             "from": state["from"],
             "subject": state["subject"],
             "rule": rule.name if rule else None,
-            "label": rule.label if rule else None,
+            "label": d["label"],
             "action": rule.action if d["confirmed"] else None,
             "unsubscribe": facts["unsubscribe"],
             "mixed_sender": facts["mixed_sender"],
@@ -124,8 +127,8 @@ def classify(
         log("classified", **result)
         if not dry_run:
             add = [labels[SEEN]]
-            if rule and rule.label and (rule.label_on == "match" or d["confirmed"]):
-                add.append(labels[rule.label])
+            if d["label"]:
+                add.append(labels[d["label"]])
             if d["confirmed"] and rule.action:
                 add.append(labels[action_label(rule, facts)])
                 if rule.action == "unsubscribe" and facts["mixed_sender"]:
